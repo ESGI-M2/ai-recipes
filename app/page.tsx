@@ -6,10 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu";
+import { Navigation } from "./components/Navigation";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { LoadingSpinner } from "./components/LoadingSpinner";
+
 import React from "react";
 import { RecipeCard } from "./components/RecipeCard";
-import Link from "next/link";
+
+import { toast } from "sonner";
 
 const INTOLERANCES = [
   { label: "Gluten", value: "gluten" },
@@ -32,6 +39,7 @@ export default function Home() {
   const [recipeError, setRecipeError] = useState<string | null>(null);
   const [intolerances, setIntolerances] = useState<string[]>([]);
   const [servings, setServings] = useState(1);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const fetchIngredients = async () => {
@@ -71,10 +79,12 @@ export default function Home() {
       const merged = [...selectedIngredients, newOption.value];
       select(merged);
       setSelectedIngredients(merged);
+      toast.success("Ingrédient ajouté avec succès !");
     } catch {
       setIngredientOptions((prev) => [option, ...prev]);
       select([option.value]);
       setSelectedIngredients([option.value]);
+      toast.error("Erreur lors de l'ajout de l'ingrédient");
     }
   };
 
@@ -82,6 +92,19 @@ export default function Home() {
     setRecipes([]);
     setRecipeError(null);
     setRecipeLoading(true);
+    setProgress(0);
+
+    // Simulate progress for AI generation
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return prev;
+        }
+        return prev + 10;
+      });
+    }, 200);
+
     try {
       // Send both id and name for each selected ingredient
       const selectedIngredientObjects = selectedIngredients.map(id => {
@@ -103,72 +126,91 @@ export default function Home() {
       const recipesArr = data.structuredResponse?.recipes || data.recipes || [];
       // Attach the ingredient id mapping to each recipe for later use
       setRecipes(Array.isArray(recipesArr) ? recipesArr.map((r: Record<string, unknown>) => ({ ...r, ingredientIdMap: selectedIngredientObjects })) : []);
+      setProgress(100);
+      toast.success("Recettes générées avec succès !");
     } catch (err: unknown) {
       const error = err as Error;
       setRecipeError(error.message || 'Unknown error');
+      toast.error("Erreur lors de la génération des recettes");
     } finally {
       setRecipeLoading(false);
+      clearInterval(progressInterval);
+      setTimeout(() => setProgress(0), 1000);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation Menu */}
-      <header className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4">
-          <NavigationMenu>
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <Link href="/" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    AI Recipe Generator
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link href="/recipes" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    Mes Recettes
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
-        </div>
-      </header>
+    <div className="min-h-screen">
+      <Navigation />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-8">
+          {/* Hero Section */}
+          <div className="text-center space-y-4 fade-in-up">
+            <h1 className="text-4xl font-bold gradient-text">
+              Générez des recettes magiques avec l&apos;IA
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Sélectionnez vos ingrédients et laissez notre IA créer des recettes personnalisées, 
+              créatives et délicieuses pour vous.
+            </p>
+          </div>
+
           {/* Form Section */}
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Générer une recette</CardTitle>
+          <div className="scale-in">
+            <Card className="modern-card hover-lift">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl flex items-center justify-center gap-2">
+                  <span className="ai-pulse">🤖</span>
+                  Générer une recette
+                </CardTitle>
                 <CardDescription>
-                  Sélectionnez vos ingrédients et préférences pour créer une recette personnalisée
+                  Sélectionnez vos ingrédients et préférences pour créer des recettes personnalisées
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Ingredients Selection */}
                 <div className="space-y-2">
-                  <Label htmlFor="ingredients">Ingrédients</Label>
+                  <Label htmlFor="ingredients" className="text-base font-medium">
+                    🥕 Ingrédients disponibles
+                  </Label>
                   {loading ? (
-                    <div className="text-sm text-muted-foreground">Chargement des ingrédients...</div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-3/4" />
+                    </div>
                   ) : (
                     <MultiSelect
                       options={ingredientOptions}
                       onValueChange={setSelectedIngredients}
                       onAddAndSelectOption={handleAddAndSelectIngredientOption}
-                      placeholder="Sélectionnez les ingrédients"
+                      placeholder="Sélectionnez vos ingrédients..."
                       maxCount={20}
                     />
                   )}
+                  {selectedIngredients.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedIngredients.map((id) => {
+                        const ingredient = ingredientOptions.find(opt => opt.value === id);
+                        return (
+                          <Badge key={id} variant="secondary" className="ai-float">
+                            {ingredient?.label || id}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
+
+                <Separator />
 
                 {/* Servings */}
                 <div className="space-y-2">
-                  <Label htmlFor="servings">Nombre de portions</Label>
+                  <Label htmlFor="servings" className="text-base font-medium">
+                    👥 Nombre de portions
+                  </Label>
                   <Input
                     id="servings"
                     type="number"
@@ -177,29 +219,52 @@ export default function Home() {
                     value={servings}
                     onChange={e => setServings(Number(e.target.value))}
                     placeholder="Nombre de portions"
+                    className="text-center"
                   />
                 </div>
 
                 {/* Intolerances */}
                 <div className="space-y-2">
-                  <Label>Intolérances</Label>
+                  <Label className="text-base font-medium">
+                    ⚠️ Intolérances alimentaires
+                  </Label>
                   <MultiSelect
                     options={INTOLERANCES}
                     value={intolerances}
                     onValueChange={setIntolerances}
-                    placeholder="Sélectionnez les intolérances (optionnel)"
+                    placeholder="Sélectionnez vos intolérances (optionnel)"
                     maxCount={10}
                   />
                 </div>
+
+                <Separator />
 
                 {/* Generate Button */}
                 <Button
                   onClick={handleGenerateRecipe}
                   disabled={selectedIngredients.length === 0 || recipeLoading}
-                  className="w-full"
+                  className="w-full h-12 text-lg font-semibold gradient-bg-ai hover:opacity-90 transition-all duration-300 ai-pulse"
                 >
-                  {recipeLoading ? "Génération..." : "Générer la recette"}
+                  {recipeLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Génération en cours...
+                    </div>
+                  ) : (
+                    "🚀 Générer mes recettes"
+                  )}
                 </Button>
+
+                {/* Progress Bar */}
+                {recipeLoading && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Analyse des ingrédients...</span>
+                      <span>{progress}%</span>
+                    </div>
+                    <Progress value={progress} className="h-2" />
+                  </div>
+                )}
 
                 {/* Error Display */}
                 {recipeError && (
@@ -212,41 +277,61 @@ export default function Home() {
           </div>
 
           {/* Results Section */}
-          <div>
+          <div className="scale-in">
             {recipeLoading && (
-              <Card>
+              <Card className="modern-card">
                 <CardContent className="pt-6">
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                      <p className="text-sm text-muted-foreground">Génération de la recette...</p>
-                    </div>
+                  <div className="flex items-center justify-center py-12">
+                    <LoadingSpinner 
+                      size="lg" 
+                      text="L'IA cuisine pour vous..." 
+                      showProgress={true}
+                      progress={progress}
+                    />
                   </div>
                 </CardContent>
               </Card>
             )}
 
             {recipes.length > 0 && !recipeError && (
-              <div className="space-y-4">
+              <div className="space-y-6 fade-in-up">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold">Résultats</h2>
-                  <Button onClick={handleGenerateRecipe} size="sm" variant="outline">
-                    Régénérer
+                  <div>
+                    <h2 className="text-2xl font-bold gradient-text">🎉 Vos recettes générées</h2>
+                    <p className="text-muted-foreground">Découvrez vos recettes personnalisées créées par l&apos;IA</p>
+                  </div>
+                  <Button 
+                    onClick={handleGenerateRecipe} 
+                    size="sm" 
+                    variant="outline"
+                    className="hover-lift"
+                  >
+                    🔄 Régénérer
                   </Button>
                 </div>
-                {recipes.map((recipe, idx) => (
-                  <RecipeCard key={idx} recipe={recipe} />
-                ))}
+                <div className="space-y-6">
+                  {recipes.map((recipe, idx) => (
+                    <div key={idx} className="fade-in-up" style={{ animationDelay: `${idx * 0.1}s` }}>
+                      <RecipeCard recipe={recipe} />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {!recipeLoading && recipes.length === 0 && !recipeError && (
-              <Card>
+              <Card className="modern-card">
                 <CardContent className="pt-6">
-                  <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground">
-                      Sélectionnez des ingrédients et cliquez sur &quot;Générer la recette&quot; pour commencer
-                    </p>
+                  <div className="text-center py-12 space-y-4">
+                    <div className="ai-float">
+                      <span className="text-6xl">🍽️</span>
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-semibold">Prêt à cuisiner ?</h3>
+                                             <p className="text-muted-foreground">
+                         Sélectionnez vos ingrédients et cliquez sur &quot;Générer mes recettes&quot; pour commencer
+                       </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

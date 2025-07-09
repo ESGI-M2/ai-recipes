@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu";
+import { Navigation } from "../components/Navigation";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { Clock, Users, ChefHat, Calendar, Search } from "lucide-react";
 import Link from "next/link";
 
 interface Recipe {
@@ -40,6 +43,7 @@ export default function RecipesPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const fetchRecipes = async () => {
@@ -91,60 +95,76 @@ export default function RecipesPage() {
     return recipe.created_at || recipe.createdTime;
   };
 
+  // Filter recipes based on search term
+  const filteredRecipes = recipes.filter(recipe => 
+    getRecipeTitle(recipe).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (getRecipeDescription(recipe) && getRecipeDescription(recipe)!.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation Menu */}
-      <header className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4">
-          <NavigationMenu>
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <Link href="/" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    AI Recipe Generator
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link href="/recipes" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    Mes Recettes
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
-        </div>
-      </header>
+    <div className="min-h-screen">
+      <Navigation />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto space-y-8">
+        <div className="max-w-6xl mx-auto space-y-8">
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Mes Recettes</h1>
-            <p className="text-muted-foreground">
-              Toutes vos recettes générées et sauvegardées
+          <div className="text-center space-y-4 fade-in-up">
+            <h1 className="text-4xl font-bold gradient-text">
+              📚 Mes Recettes
+            </h1>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Toutes vos recettes générées et sauvegardées, organisées pour vous
             </p>
           </div>
 
+          {/* Search Bar */}
+          <div className="scale-in">
+            <Card className="modern-card">
+              <CardContent className="pt-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher une recette..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Recipes List */}
-          <div>
+          <div className="scale-in">
             {loading && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                      <p className="text-sm text-muted-foreground">Chargement des recettes...</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="space-y-4">
+                {[...Array(3)].map((_, index) => (
+                  <Card key={index} className="modern-card">
+                    <CardContent className="pt-6">
+                      <div className="space-y-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-4 w-1/2" />
+                          </div>
+                          <Skeleton className="h-8 w-20" />
+                        </div>
+                        <div className="flex gap-2">
+                          <Skeleton className="h-6 w-16" />
+                          <Skeleton className="h-6 w-20" />
+                          <Skeleton className="h-6 w-24" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
 
             {error && (
-              <Card>
+              <Card className="modern-card">
                 <CardContent className="pt-6">
                   <div className="p-4 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-sm text-red-600">{error}</p>
@@ -153,16 +173,27 @@ export default function RecipesPage() {
               </Card>
             )}
 
-            {!loading && !error && recipes.length === 0 && (
-              <Card>
+            {!loading && !error && filteredRecipes.length === 0 && (
+              <Card className="modern-card">
                 <CardContent className="pt-6">
-                  <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Aucune recette trouvée
-                    </p>
+                  <div className="text-center py-12 space-y-4">
+                    <div className="ai-float">
+                      <span className="text-6xl">📚</span>
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-xl font-semibold">
+                        {searchTerm ? "Aucune recette trouvée" : "Aucune recette sauvegardée"}
+                      </h3>
+                      <p className="text-muted-foreground">
+                        {searchTerm 
+                          ? "Essayez de modifier vos critères de recherche"
+                          : "Commencez par générer votre première recette"
+                        }
+                      </p>
+                    </div>
                     <Link href="/">
-                      <Button>
-                        Générer votre première recette
+                      <Button className="gradient-bg hover:opacity-90">
+                        🚀 Générer ma première recette
                       </Button>
                     </Link>
                   </div>
@@ -170,75 +201,86 @@ export default function RecipesPage() {
               </Card>
             )}
 
-            {!loading && !error && recipes.length > 0 && (
-              <div className="grid gap-6">
-                {recipes.map((recipe) => (
-                  <Card key={recipe.id} className="hover:shadow-md transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="mb-2">
-                            <Link href={`/recipes/${recipe.id}`} className="hover:underline">
-                              {getRecipeTitle(recipe)}
+            {!loading && !error && filteredRecipes.length > 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    {filteredRecipes.length} recette{filteredRecipes.length > 1 ? 's' : ''} trouvée{filteredRecipes.length > 1 ? 's' : ''}
+                  </p>
+                </div>
+                
+                <div className="space-y-4">
+                  {filteredRecipes.map((recipe, index) => (
+                    <div key={recipe.id} className="fade-in-up" style={{ animationDelay: `${index * 0.1}s` }}>
+                      <Card className="modern-card hover-lift transition-all duration-300">
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <CardTitle className="mb-2">
+                                <Link 
+                                  href={`/recipes/${recipe.id}`} 
+                                  className="hover:underline gradient-text font-bold"
+                                >
+                                  {getRecipeTitle(recipe)}
+                                </Link>
+                              </CardTitle>
+                              {getRecipeDescription(recipe) && (
+                                <CardDescription className="mb-3">
+                                  {getRecipeDescription(recipe)}
+                                </CardDescription>
+                              )}
+                            </div>
+                            <Link href={`/recipes/${recipe.id}`}>
+                              <Button variant="outline" size="sm" className="hover-lift">
+                                👁️ Voir détails
+                              </Button>
                             </Link>
-                          </CardTitle>
-                          {getRecipeDescription(recipe) && (
-                            <CardDescription className="mb-3">
-                              {getRecipeDescription(recipe)}
-                            </CardDescription>
-                          )}
-                        </div>
-                        <Link href={`/recipes/${recipe.id}`}>
-                          <Button variant="outline" size="sm">
-                            Voir détails
-                          </Button>
-                        </Link>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {/* Recipe Info */}
-                      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mb-4">
-                        {getRecipeServings(recipe) && <span>Portions : {getRecipeServings(recipe)}</span>}
-                        {getRecipePrepTime(recipe) && <span>Préparation : {getRecipePrepTime(recipe)} min</span>}
-                        {getRecipeCookTime(recipe) && <span>Cuisson : {getRecipeCookTime(recipe)} min</span>}
-                        {getRecipeCreatedAt(recipe) && (
-                          <span>Créée le : {new Date(getRecipeCreatedAt(recipe)!).toLocaleDateString('fr-FR')}</span>
-                        )}
-                      </div>
-
-                      {/* Intolerances */}
-                      {recipe.intolerances && recipe.intolerances.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-4">
-                          <span className="text-sm font-medium">Intolérances :</span>
-                          {recipe.intolerances.map((intolerance, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">
-                              {intolerance}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Ingredients Preview */}
-                      {recipe.ingredients && recipe.ingredients.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium mb-2">Ingrédients principaux</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {recipe.ingredients.slice(0, 5).map((ingredient, i) => (
-                              <Badge key={i} variant="outline" className="text-xs">
-                                {ingredient.name}
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          {/* Recipe Info */}
+                          <div className="flex flex-wrap gap-3 mb-4">
+                            {getRecipeServings(recipe) && (
+                              <Badge variant="secondary" className="flex items-center gap-1">
+                                <Users className="w-3 h-3" />
+                                {getRecipeServings(recipe)} portion{getRecipeServings(recipe)! > 1 ? 's' : ''}
                               </Badge>
-                            ))}
-                            {recipe.ingredients.length > 5 && (
-                              <Badge variant="outline" className="text-xs">
-                                +{recipe.ingredients.length - 5} autres
+                            )}
+                            {getRecipePrepTime(recipe) && (
+                              <Badge variant="secondary" className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                Préparation: {getRecipePrepTime(recipe)} min
+                              </Badge>
+                            )}
+                            {getRecipeCookTime(recipe) && (
+                              <Badge variant="secondary" className="flex items-center gap-1">
+                                <ChefHat className="w-3 h-3" />
+                                Cuisson: {getRecipeCookTime(recipe)} min
+                              </Badge>
+                            )}
+                            {getRecipeCreatedAt(recipe) && (
+                              <Badge variant="outline" className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(getRecipeCreatedAt(recipe)!).toLocaleDateString('fr-FR')}
                               </Badge>
                             )}
                           </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+
+                          <Separator />
+
+                                                     {/* Quick Actions */}
+                           <div className="flex gap-3 mt-4">
+                             <Link href={`/recipes/${recipe.id}`} className="flex-1">
+                               <Button variant="outline" className="w-full hover-lift">
+                                 📖 Lire la recette
+                               </Button>
+                             </Link>
+                           </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

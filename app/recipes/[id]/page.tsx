@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu";
+import { Navigation } from "../../components/Navigation";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+
+import { Skeleton } from "@/components/ui/skeleton";
+import { Clock, Users, ChefHat, Calendar, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -158,60 +160,58 @@ export default function RecipeDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation Menu */}
-      <header className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4">
-          <NavigationMenu>
-            <NavigationMenuList>
-              <NavigationMenuItem>
-                <Link href="/" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    AI Recipe Generator
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link href="/recipes" legacyBehavior passHref>
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    Mes Recettes
-                  </NavigationMenuLink>
-                </Link>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
-        </div>
-      </header>
+    <div className="min-h-screen">
+      <Navigation />
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-8">
           {/* Back Button */}
-          <div>
+          <div className="fade-in-up">
             <Link href="/recipes">
-              <Button variant="outline" size="sm">
-                ← Retour aux recettes
+              <Button variant="outline" size="sm" className="hover-lift">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Retour aux recettes
               </Button>
             </Link>
           </div>
 
           {/* Recipe Detail */}
-          <div>
+          <div className="scale-in">
             {loading && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                      <p className="text-sm text-muted-foreground">Chargement de la recette...</p>
+              <div className="space-y-6">
+                <Card className="modern-card">
+                  <CardHeader>
+                    <Skeleton className="h-8 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex gap-2">
+                      <Skeleton className="h-6 w-20" />
+                      <Skeleton className="h-6 w-24" />
+                      <Skeleton className="h-6 w-28" />
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    <Skeleton className="h-32 w-full" />
+                  </CardContent>
+                </Card>
+                
+                <Card className="modern-card">
+                  <CardHeader>
+                    <Skeleton className="h-6 w-32" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {[...Array(5)].map((_, i) => (
+                        <Skeleton key={i} className="h-4 w-full" />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {error && (
-              <Card>
+              <Card className="modern-card">
                 <CardContent className="pt-6">
                   <div className="p-4 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-sm text-red-600">{error}</p>
@@ -221,109 +221,133 @@ export default function RecipeDetailPage() {
             )}
 
             {!loading && !error && recipe && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-2xl">{getRecipeTitle(recipe)}</CardTitle>
-                  {getRecipeDescription(recipe) && (
-                    <CardDescription className="text-base">
-                      {getRecipeDescription(recipe)}
-                    </CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Recipe Info */}
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    {getRecipeServings(recipe) && <span>Portions : {getRecipeServings(recipe)}</span>}
-                    {getRecipePrepTime(recipe) && <span>Préparation : {getRecipePrepTime(recipe)} min</span>}
-                    {getRecipeCookTime(recipe) && <span>Cuisson : {getRecipeCookTime(recipe)} min</span>}
-                    {getRecipeCreatedAt(recipe) && (
-                      <span>Créée le : {new Date(getRecipeCreatedAt(recipe)!).toLocaleDateString('fr-FR')}</span>
+              <div className="space-y-8">
+                {/* Recipe Header */}
+                <Card className="modern-card">
+                  <CardHeader className="text-center">
+                    <CardTitle className="text-3xl font-bold gradient-text mb-4">
+                      {getRecipeTitle(recipe)}
+                    </CardTitle>
+                    {getRecipeDescription(recipe) && (
+                      <CardDescription className="text-lg text-muted-foreground mb-6">
+                        {getRecipeDescription(recipe)}
+                      </CardDescription>
                     )}
-                  </div>
+                    
+                    {/* Recipe Metadata */}
+                    <div className="flex flex-wrap justify-center gap-4 mb-6">
+                      {getRecipeServings(recipe) && (
+                        <Badge variant="secondary" className="flex items-center gap-2 px-4 py-2">
+                          <Users className="w-4 h-4" />
+                          {getRecipeServings(recipe)} portion{getRecipeServings(recipe)! > 1 ? 's' : ''}
+                        </Badge>
+                      )}
+                      {getRecipePrepTime(recipe) && (
+                        <Badge variant="secondary" className="flex items-center gap-2 px-4 py-2">
+                          <Clock className="w-4 h-4" />
+                          Préparation: {getRecipePrepTime(recipe)} min
+                        </Badge>
+                      )}
+                      {getRecipeCookTime(recipe) && (
+                        <Badge variant="secondary" className="flex items-center gap-2 px-4 py-2">
+                          <ChefHat className="w-4 h-4" />
+                          Cuisson: {getRecipeCookTime(recipe)} min
+                        </Badge>
+                      )}
+                      {getRecipeCreatedAt(recipe) && (
+                        <Badge variant="outline" className="flex items-center gap-2 px-4 py-2">
+                          <Calendar className="w-4 h-4" />
+                          {new Date(getRecipeCreatedAt(recipe)!).toLocaleDateString('fr-FR')}
+                        </Badge>
+                      )}
+                    </div>
 
-                  {/* Intolerances */}
-                  {recipe.intolerances && recipe.intolerances.length > 0 && (
-                    <div>
-                      <h3 className="font-semibold mb-2">Intolérances</h3>
-                      <div className="flex flex-wrap gap-1">
-                        {recipe.intolerances.map((intolerance, i) => (
-                          <Badge key={i} variant="secondary">
+
+                  </CardHeader>
+                </Card>
+
+                {/* Ingredients Section */}
+                <Card className="modern-card">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <span className="text-2xl">🥕</span>
+                      Ingrédients
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {getIngredients(recipe).map((ingredient, index) => (
+                        <div 
+                          key={index} 
+                          className="flex items-center gap-3 p-4 bg-muted/50 rounded-lg hover-lift"
+                          style={{ animationDelay: `${index * 0.1}s` }}
+                        >
+                          <div className="w-3 h-3 bg-primary rounded-full"></div>
+                          <div className="flex-1">
+                            <div className="font-medium">{ingredient.name}</div>
+                            {ingredient.quantity && ingredient.unit && (
+                              <div className="text-sm text-muted-foreground">
+                                {ingredient.quantity} {ingredient.unit}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Instructions Section */}
+                <Card className="modern-card">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <span className="text-2xl">📝</span>
+                      Instructions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {getInstructions(recipe).map((instruction, index) => (
+                        <div 
+                          key={index} 
+                          className="flex gap-6 p-6 bg-muted/30 rounded-lg hover-lift"
+                          style={{ animationDelay: `${index * 0.1}s` }}
+                        >
+                          <div className="flex-shrink-0 w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-lg font-bold">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-base leading-relaxed">{instruction.text}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Intolerances Section */}
+                {recipe.intolerances && recipe.intolerances.length > 0 && (
+                  <Card className="modern-card">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <span className="text-2xl">⚠️</span>
+                        Intolérances
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {recipe.intolerances.map((intolerance, index) => (
+                          <Badge key={index} variant="destructive" className="px-3 py-1">
                             {intolerance}
                           </Badge>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    </CardContent>
+                  </Card>
+                )}
 
-                  <Separator />
-
-                  {/* Ingredients */}
-                  {(() => {
-                    const ingredients = getIngredients(recipe);
-                    return ingredients.length > 0 ? (
-                      <div>
-                        <h3 className="font-semibold mb-3">Ingrédients</h3>
-                        <ul className="space-y-2">
-                          {ingredients.map((ingredient, i) => (
-                            <li key={i} className="flex items-center gap-2">
-                              <span className="w-2 h-2 bg-primary rounded-full"></span>
-                              <span className="text-sm">
-                                {ingredient.quantity && ingredient.unit
-                                  ? `${ingredient.quantity} ${ingredient.unit} ${ingredient.name}`
-                                  : ingredient.quantity
-                                  ? `${ingredient.quantity} ${ingredient.name}`
-                                  : ingredient.name}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ) : null;
-                  })()}
-
-                  <Separator />
-
-                  {/* Instructions */}
-                  {(() => {
-                    const instructions = getInstructions(recipe);
-                    return instructions.length > 0 ? (
-                      <div>
-                        <h3 className="font-semibold mb-3">Instructions</h3>
-                        <ol className="space-y-4">
-                          {instructions.map((instruction, i) => (
-                            <li key={i} className="flex gap-4">
-                              <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
-                                {instruction.order}
-                              </span>
-                              <span className="text-sm leading-relaxed">{instruction.text}</span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    ) : null;
-                  })()}
-
-                  {getIngredients(recipe).length === 0 && getInstructions(recipe).length === 0 && (
-                    <div className="text-center py-8">
-                      <p className="text-sm text-muted-foreground">
-                        Aucun détail disponible pour cette recette
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {!loading && !error && !recipe && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground">
-                      Recette non trouvée
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+                
+              </div>
             )}
           </div>
         </div>
