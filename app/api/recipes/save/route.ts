@@ -5,8 +5,7 @@ import { AirtableTables } from '@/constants/airtable';
 export async function POST(req: Request) {
   try {
     const { recipe } = await req.json();
-
-    console.log('recipe', recipe);  
+    
     if (!recipe) {
       return NextResponse.json({ error: 'Recipe is required' }, { status: 400 });
     }

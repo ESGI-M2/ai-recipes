@@ -51,6 +51,7 @@ export default function Home() {
   const [recipeLoading, setRecipeLoading] = useState(false);
   const [recipeError, setRecipeError] = useState<string | null>(null);
   const [intolerances, setIntolerances] = useState<string[]>([]);
+  const [servings, setServings] = useState(1);
 
   useEffect(() => {
     const fetchIngredients = async () => {
@@ -113,6 +114,7 @@ export default function Home() {
         body: JSON.stringify({
           ingredients: selectedIngredientObjects,
           intolerances,
+          servings,
         }),
       });
       if (!response.ok) throw new Error('Failed to generate recipe');
@@ -146,6 +148,18 @@ export default function Home() {
             />
           )}
           <div className="mt-4 flex flex-col gap-4">
+            <div>
+              <label className="block mb-1 font-medium">Nombre de portions</label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={servings}
+                onChange={e => setServings(Number(e.target.value))}
+                className="w-full border rounded px-3 py-2"
+                placeholder="Nombre de portions"
+              />
+            </div>
             <div>
               <label className="block mb-1 font-medium">Intolérances</label>
               <MultiSelect

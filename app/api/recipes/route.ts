@@ -93,7 +93,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { ingredients, intolerances } = await req.json();
+    const { ingredients, intolerances, servings = 1 } = await req.json();
     if (!Array.isArray(ingredients) || ingredients.length === 0) {
       return NextResponse.json({ error: 'Les ingrédients sont requis' }, { status: 400 });
     }
@@ -116,11 +116,86 @@ export async function POST(req: Request) {
 
     // Correction : transmettre la liste complète des ingrédients (id, name) et demander d'utiliser exactement ces noms
     const ingredientListJson = JSON.stringify(ingredients);
-    let prompt = `Tu dois répondre uniquement en français. En utilisant UNIQUEMENT les ingrédients suivants, génère une ou plusieurs recettes délicieuses, communes et françaises. Privilégie des recettes traditionnelles ou populaires en France, qui existent réellement et sont reconnues. N'invente pas de recettes ou d'ingrédients qui n'existent pas. Tu dois absolument utiliser uniquement les ingrédients fournis en entrée. Aucun autre ingrédient ne doit apparaître dans la recette. Voici la liste des ingrédients disponibles (format JSON) : ${ingredientListJson}
-Pour chaque ingrédient utilisé dans la recette, tu dois renvoyer l'objet complet {id, name} tel qu'il apparaît dans cette liste, en plus de la quantité et de l'unité. Tu ne dois jamais inventer d'id ou de nom. Les instructions doivent être renvoyées sous forme d'un tableau d'objets, chaque objet ayant les champs {text, order} (texte de l'étape, ordre à partir de 1). Réponds UNIQUEMENT en JSON valide, sans markdown, sans texte supplémentaire. Le JSON doit être un objet avec une propriété 'recipes' contenant un tableau d'objets recette. Pour chaque recette, le champ 'ingredients' doit être un tableau d'objets avec 'id' (chaîne, identique à la liste ci-dessus), 'name' (chaîne, identique à la liste ci-dessus), 'quantity' (nombre), et 'unit' (chaîne, ex : "g", "kg", "tasse", "c.à.c."). Le champ 'instructions' doit être un tableau d'objets {text, order}. Le champ 'servings' doit toujours être 1.`;
-    prompt += `\nChaque recette doit être pour 1 personne. Le champ 'servings' doit toujours être 1.`;
+    let prompt = `Contexte
+Tu es un assistant culinaire francophone chargé de proposer des recettes françaises authentiques.
+
+Je te fournis :
+- Une liste d'ingrédients disponibles (format JSON, propriétés id et name).
+- Des intolérances (ex. lactose, gluten, fruits à coque).
+
+Objectif : Générer une ou plusieurs recettes (pour ${servings} personne(s) chacune) utilisant uniquement les ingrédients fournis et aucun autre. Les recettes doivent être reconnues en France ; n'invente ni recettes, ni ingrédients.
+
+Règles absolues
+- Langue : réponds uniquement en français.
+- Vérification des intolérances : écarte tout ingrédient contenant un composant interdit. Si aucun ingrédient compatible ne reste, réponds avec un objet JSON {"error":"Aucune recette possible avec les intolérances données."}.
+- Structure JSON obligatoire (sans Markdown, ni texte hors JSON).
+- Ordre et granularité des étapes :
+  * Les étapes sont séquentielles et obligatoires ; ne saute rien.
+  * Chaque étape décrit une seule action culinaire majeure (préparer, couper, chauffer, servir…).
+  * Numérote-les via le champ order, en partant de 1 et en incrémentant de 1 ; aucun doublon ni saut de numéro.
+- Champ ingredients : tableau d'objets {id, name, quantity, unit} où id et name doivent correspondre exactement à la liste fournie.
+- Champ instructions : tableau d'objets {text, order} conformément à la règle 4.
+- Champ servings : toujours la valeur ${servings}.
+- Ajuster les quantités d'ingrédients proportionnellement au nombre de portions.
+- Ajuster les temps de préparation et de cuisson en fonction du nombre de portions (légèrement plus long pour plus de portions).
+- Aucun champ supplémentaire n'est autorisé.
+
+RÈGLE CRITIQUE - INGRÉDIENTS STRICTEMENT LIMITÉS :
+- Tu ne peux utiliser QUE les ingrédients fournis dans la liste.
+- Tu ne peux PAS inventer, suggérer, ou utiliser d'autres ingrédients.
+- Si une recette nécessite des ingrédients supplémentaires (farine, œufs, lait, etc.), tu ne peux PAS la proposer.
+- Exemples d'erreurs à éviter :
+  * Si on te donne seulement "banane", ne propose PAS de "pain à la banane" (nécessite farine, œufs, etc.)
+  * Si on te donne seulement "pomme", ne propose PAS de "tarte aux pommes" (nécessite pâte, sucre, etc.)
+  * Si on te donne seulement "poulet", ne propose PAS de "poulet rôti" (nécessite huile, épices, etc.)
+- Propose uniquement des recettes qui peuvent être réalisées avec les ingrédients fournis, sans ajout.
+- Si les ingrédients sont insuffisants pour une recette complète, propose des préparations simples (salade, compote, etc.)
+
+RÈGLE CRITIQUE - INSTRUCTIONS STRICTEMENT LIMITÉES :
+- Dans les instructions, tu ne peux mentionner QUE les ingrédients fournis dans la liste.
+- Tu ne peux PAS mentionner d'autres ingrédients dans les instructions (glace, chantilly, sauce, épices, etc.)
+- Exemples d'erreurs dans les instructions à éviter :
+  * "Ajouter de la glace vanille" (glace non fournie)
+  * "Napper de sauce chocolat" (sauce non fournie)
+  * "Ajouter de la chantilly" (chantilly non fournie)
+  * "Saler et poivrer" (sel et poivre non fournis)
+  * "Ajouter des épices" (épices non fournies)
+  * "Verser de l'huile" (huile non fournie)
+- Les instructions doivent décrire uniquement la manipulation des ingrédients fournis.
+- Si un ingrédient n'est pas dans la liste fournie, il ne doit PAS apparaître dans les instructions.
+
+Ingrédients disponibles : ${ingredientListJson}`;
+
     if (Array.isArray(intolerances) && intolerances.length > 0) {
-      prompt += `\nÉvite d'utiliser ces ingrédients à cause des intolérances : ${intolerances.map((i: any) => typeof i === 'object' ? i.name : i).join(", ")}.`;
+      prompt += `\n\nIntolérances à respecter : ${intolerances.map((i: any) => typeof i === 'object' ? i.name : i).join(", ")}.`;
+    }
+
+    prompt += `\n\nRéponds UNIQUEMENT en JSON valide avec la structure suivante :
+{
+  "recipes": [
+    {
+      "title": "Nom de la recette",
+      "description": "Description courte",
+      "ingredients": [
+        {"id": "exact_id_from_list", "name": "exact_name_from_list", "quantity": 100, "unit": "g"}
+      ],
+      "instructions": [
+        {"text": "Première étape", "order": 1},
+        {"text": "Deuxième étape", "order": 2}
+      ],
+      "servings": ${servings},
+      "prep_time_minutes": 10,
+      "cook_time_minutes": 15
+    }
+  ]
+}`;
+
+    // Add specific instructions for servings adjustment
+    if (servings > 1) {
+      prompt += `\n\nIMPORTANT - Ajustement pour ${servings} portions :
+      - Multiplier les quantités d'ingrédients par ${servings}
+      - Augmenter légèrement les temps de préparation et cuisson (ex: +2-3 min pour 2 portions, +5-8 min pour 4 portions)
+      - Maintenir les proportions et équilibres de la recette`;
     }
 
     const result = await agent.invoke({
