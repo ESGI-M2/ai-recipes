@@ -1,131 +1,333 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+
+interface RecipeIngredientRecord {
+  id: string;
+  createdTime: string;
+  fields: {
+    Identifier: number;
+    Recipe: string[];
+    Ingredient: string[];
+    Quantity: number;
+    Unit: string;
+  };
+  ingredientName?: string;
+}
+
+interface RecipeInstructionRecord {
+  id: string;
+  createdTime: string;
+  fields: {
+    Instruction: string;
+    Order: number;
+    Recipe: string[];
+  };
+}
+
+interface Recipe {
+  id: string;
+  createdTime?: string;
+  fields?: {
+    Title?: string;
+    Description?: string;
+    Servings?: number;
+    PrepTimeMinutes?: number;
+    CookTimeMinutes?: number;
+    Recipes_Ingredients?: string[];
+    Recipe_Instructions?: string[];
+  };
+  recipe_ingredient_quantity_records?: RecipeIngredientRecord[];
+  recipe_instruction_records?: RecipeInstructionRecord[];
+  ingredients?: Array<{
+    id: string;
+    name: string;
+    quantity?: number;
+    unit?: string;
+  }>;
+  instructions?: Array<{
+    text: string;
+    order: number;
+  }>;
+  intolerances?: string[];
+  servings?: number;
+  prep_time_minutes?: number;
+  cook_time_minutes?: number;
+  created_at?: string;
+}
 
 export default function RecipeDetailPage() {
   const params = useParams();
-  const router = useRouter();
-  const id = params?.id as string;
-  const [recipe, setRecipe] = useState<any>(null);
+  const recipeId = params.id as string;
+  
+  const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [nutrition, setNutrition] = useState<any>(null);
-  const [nutritionLoading, setNutritionLoading] = useState(false);
-  const [nutritionError, setNutritionError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
     const fetchRecipe = async () => {
       try {
-        const res = await fetch(`/api/recipes/${id}`);
-        if (!res.ok) throw new Error("Failed to fetch recipe");
-        const data = await res.json();
-        setRecipe(data);
-      } catch (e: any) {
-        setError(e.message || "Unknown error");
+        const response = await fetch(`/api/recipes/${recipeId}`);
+        if (!response.ok) throw new Error('Failed to fetch recipe');
+        const data = await response.json();
+        setRecipe(data.recipe || data);
+      } catch (err) {
+        const error = err as Error;
+        setError(error.message || 'Failed to load recipe');
       } finally {
         setLoading(false);
       }
     };
-    fetchRecipe();
-  }, [id]);
 
-  // Nutrition analysis (mocked or call your own API)
-  useEffect(() => {
-    if (!recipe) return;
-    setNutritionLoading(true);
-    setNutritionError(null);
-    // Call /api/nutrition with the new ingredients array
-    const fetchNutrition = async () => {
-      try {
-        const res = await fetch(`/api/nutrition`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ingredients: recipe.ingredients || [] })
-        });
-        if (!res.ok) throw new Error("Failed to fetch nutrition");
-        const data = await res.json();
-        setNutrition(data);
-      } catch (e: any) {
-        setNutritionError(e.message || "Unknown error");
-      } finally {
-        setNutritionLoading(false);
-      }
-    };
-    fetchNutrition();
-  }, [recipe]);
+    if (recipeId) {
+      fetchRecipe();
+    }
+  }, [recipeId]);
+
+  // Helper function to get recipe title
+  const getRecipeTitle = (recipe: Recipe) => {
+    return recipe.fields?.Title || 'Recette sans titre';
+  };
+
+  // Helper function to get recipe description
+  const getRecipeDescription = (recipe: Recipe) => {
+    return recipe.fields?.Description;
+  };
+
+  // Helper function to get recipe servings
+  const getRecipeServings = (recipe: Recipe) => {
+    return recipe.servings || recipe.fields?.Servings;
+  };
+
+  // Helper function to get recipe prep time
+  const getRecipePrepTime = (recipe: Recipe) => {
+    return recipe.prep_time_minutes || recipe.fields?.PrepTimeMinutes;
+  };
+
+  // Helper function to get recipe cook time
+  const getRecipeCookTime = (recipe: Recipe) => {
+    return recipe.cook_time_minutes || recipe.fields?.CookTimeMinutes;
+  };
+
+  // Helper function to get recipe creation date
+  const getRecipeCreatedAt = (recipe: Recipe) => {
+    return recipe.created_at || recipe.createdTime;
+  };
+
+  // Helper function to get ingredients from join table
+  const getIngredients = (recipe: Recipe) => {
+    if (recipe.ingredients && recipe.ingredients.length > 0) {
+      return recipe.ingredients;
+    }
+    
+    if (recipe.recipe_ingredient_quantity_records && recipe.recipe_ingredient_quantity_records.length > 0) {
+      return recipe.recipe_ingredient_quantity_records.map(record => ({
+        id: record.id,
+        name: record.ingredientName || `Ingrédient ${record.fields.Identifier}`, // Use ingredientName if available
+        quantity: record.fields.Quantity,
+        unit: record.fields.Unit
+      }));
+    }
+    
+    return [];
+  };
+
+  // Helper function to get instructions from join table
+  const getInstructions = (recipe: Recipe) => {
+    if (recipe.instructions && recipe.instructions.length > 0) {
+      return recipe.instructions;
+    }
+    
+    if (recipe.recipe_instruction_records && recipe.recipe_instruction_records.length > 0) {
+      return recipe.recipe_instruction_records
+        .map(record => ({
+          text: record.fields.Instruction,
+          order: record.fields.Order
+        }))
+        .sort((a, b) => a.order - b.order);
+    }
+    
+    return [];
+  };
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <Button variant="secondary" size="sm" onClick={() => router.back()} className="mb-4">Back</Button>
-      {loading && <div>Loading recipe...</div>}
-      {error && <div className="text-red-600">{error}</div>}
-      {recipe && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{recipe.title || recipe.fields?.Title || "Untitled Recipe"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-2 text-gray-700">{recipe.description || recipe.fields?.Description}</div>
-            <div className="mb-2">
-              <strong>Ingredients:</strong>
-              <ul className="list-disc list-inside">
-                {Array.isArray(recipe.recipe_ingredient_quantity_records) && recipe.recipe_ingredient_quantity_records.length > 0 ? (
-                  recipe.recipe_ingredient_quantity_records.map((rec: any, i: number) => (
-                    <li key={i}>
-                      {rec.fields.Quantity} {rec.fields.Unit} (Ingredient ID: {Array.isArray(rec.fields.Ingredient) ? rec.fields.Ingredient[0] : rec.fields.Ingredient})
-                    </li>
-                  ))
-                ) : <li>Aucun ingrédient trouvé.</li>}
-              </ul>
-            </div>
-            <div className="mb-2">
-              <strong>Instructions:</strong>
-              <ol className="relative border-l-2 border-gray-300 ml-4">
-                {Array.isArray(recipe.recipe_instruction_records) && recipe.recipe_instruction_records.length > 0 ? (
-                  [...recipe.recipe_instruction_records]
-                    .sort((a, b) => (a.fields.Order || 0) - (b.fields.Order || 0))
-                    .map((rec, i) => (
-                      <li key={i} className="mb-4 ml-4">
-                        <span className="absolute -left-6 flex items-center justify-center w-6 h-6 bg-blue-500 text-white rounded-full font-bold">{rec.fields.Order ?? i + 1}</span>
-                        <span className="block pl-2">{rec.fields.Instruction}</span>
-                      </li>
-                    ))
-                ) : <li>Aucune instruction trouvée.</li>}
-              </ol>
-            </div>
-            <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
-              {(recipe.servings || recipe.fields?.Servings) && <span>Servings: {recipe.servings || recipe.fields?.Servings}</span>}
-              {(recipe.prep_time_minutes || recipe.fields?.PrepTimeMinutes) && <span>Prep: {recipe.prep_time_minutes || recipe.fields?.PrepTimeMinutes} min</span>}
-              {(recipe.cook_time_minutes || recipe.fields?.CookTimeMinutes) && <span>Cook: {recipe.cook_time_minutes || recipe.fields?.CookTimeMinutes} min</span>}
-            </div>
-            {/* Nutrition Analysis Section */}
-            <div className="mt-6">
-              <Card className="bg-slate-50">
+    <div className="min-h-screen bg-gray-50">
+      {/* Navigation Menu */}
+      <header className="border-b bg-white">
+        <div className="container mx-auto px-4 py-4">
+          <NavigationMenu>
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <Link href="/" legacyBehavior passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    AI Recipe Generator
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link href="/recipes" legacyBehavior passHref>
+                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                    Mes Recettes
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto space-y-8">
+          {/* Back Button */}
+          <div>
+            <Link href="/recipes">
+              <Button variant="outline" size="sm">
+                ← Retour aux recettes
+              </Button>
+            </Link>
+          </div>
+
+          {/* Recipe Detail */}
+          <div>
+            {loading && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                      <p className="text-sm text-muted-foreground">Chargement de la recette...</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {error && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                    <p className="text-sm text-red-600">{error}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {!loading && !error && recipe && (
+              <Card>
                 <CardHeader>
-                  <CardTitle>Nutrition Analysis</CardTitle>
+                  <CardTitle className="text-2xl">{getRecipeTitle(recipe)}</CardTitle>
+                  {getRecipeDescription(recipe) && (
+                    <CardDescription className="text-base">
+                      {getRecipeDescription(recipe)}
+                    </CardDescription>
+                  )}
                 </CardHeader>
-                <CardContent>
-                  {nutritionLoading && <div>Loading nutrition...</div>}
-                  {nutritionError && <div className="text-red-600">{nutritionError}</div>}
-                  {nutrition && (
-                    <div className="space-y-2">
-                      <div><strong>Calories:</strong> {nutrition.calories} kcal</div>
-                      <div><strong>Protein:</strong> {nutrition.protein} g</div>
-                      <div><strong>Carbs:</strong> {nutrition.carbs} g</div>
-                      <div><strong>Fat:</strong> {nutrition.fat} g</div>
-                      {nutrition.vitamins && <div><strong>Vitamins:</strong> {nutrition.vitamins}</div>}
-                      {nutrition.minerals && <div><strong>Minerals:</strong> {nutrition.minerals}</div>}
+                <CardContent className="space-y-6">
+                  {/* Recipe Info */}
+                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                    {getRecipeServings(recipe) && <span>Portions : {getRecipeServings(recipe)}</span>}
+                    {getRecipePrepTime(recipe) && <span>Préparation : {getRecipePrepTime(recipe)} min</span>}
+                    {getRecipeCookTime(recipe) && <span>Cuisson : {getRecipeCookTime(recipe)} min</span>}
+                    {getRecipeCreatedAt(recipe) && (
+                      <span>Créée le : {new Date(getRecipeCreatedAt(recipe)!).toLocaleDateString('fr-FR')}</span>
+                    )}
+                  </div>
+
+                  {/* Intolerances */}
+                  {recipe.intolerances && recipe.intolerances.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold mb-2">Intolérances</h3>
+                      <div className="flex flex-wrap gap-1">
+                        {recipe.intolerances.map((intolerance, i) => (
+                          <Badge key={i} variant="secondary">
+                            {intolerance}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  {/* Ingredients */}
+                  {(() => {
+                    const ingredients = getIngredients(recipe);
+                    return ingredients.length > 0 ? (
+                      <div>
+                        <h3 className="font-semibold mb-3">Ingrédients</h3>
+                        <ul className="space-y-2">
+                          {ingredients.map((ingredient, i) => (
+                            <li key={i} className="flex items-center gap-2">
+                              <span className="w-2 h-2 bg-primary rounded-full"></span>
+                              <span className="text-sm">
+                                {ingredient.quantity && ingredient.unit
+                                  ? `${ingredient.quantity} ${ingredient.unit} ${ingredient.name}`
+                                  : ingredient.quantity
+                                  ? `${ingredient.quantity} ${ingredient.name}`
+                                  : ingredient.name}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  <Separator />
+
+                  {/* Instructions */}
+                  {(() => {
+                    const instructions = getInstructions(recipe);
+                    return instructions.length > 0 ? (
+                      <div>
+                        <h3 className="font-semibold mb-3">Instructions</h3>
+                        <ol className="space-y-4">
+                          {instructions.map((instruction, i) => (
+                            <li key={i} className="flex gap-4">
+                              <span className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-bold">
+                                {instruction.order}
+                              </span>
+                              <span className="text-sm leading-relaxed">{instruction.text}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {getIngredients(recipe).length === 0 && getInstructions(recipe).length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-sm text-muted-foreground">
+                        Aucun détail disponible pour cette recette
+                      </p>
                     </div>
                   )}
                 </CardContent>
               </Card>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            )}
+
+            {!loading && !error && !recipe && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground">
+                      Recette non trouvée
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   );
 } 

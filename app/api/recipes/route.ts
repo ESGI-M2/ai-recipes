@@ -7,6 +7,46 @@ import { AirtableTables } from '@/constants/airtable';
 
 export const runtime = 'edge';
 
+// Define types for Airtable records
+interface AirtableRecord {
+  id: string;
+  createdTime?: string;
+  fields?: Record<string, unknown>;
+}
+
+interface IngredientRecord extends AirtableRecord {
+  fields?: {
+    Name?: string;
+  };
+}
+
+interface RecipeRecord extends AirtableRecord {
+  fields?: {
+    Title?: string;
+    Description?: string;
+    Servings?: number;
+    PrepTimeMinutes?: number;
+    CookTimeMinutes?: number;
+  };
+}
+
+interface JoinRecord extends AirtableRecord {
+  fields?: {
+    Recipe?: string[];
+    Ingredient?: string[];
+    Quantity?: number | string;
+    Unit?: string;
+  };
+}
+
+interface InstructionRecord extends AirtableRecord {
+  fields?: {
+    Recipe?: string[];
+    Instruction?: string;
+    Order?: number;
+  };
+}
+
 const instructionObjectSchema = z.object({
   text: z.string().describe("Texte de l'instruction (étape)"),
   order: z.number().describe("Ordre de l'instruction dans la recette, à partir de 1"),
@@ -38,22 +78,22 @@ export async function GET() {
     // Fetch all recipes
     const recipes = await getRecords(AirtableTables.RECIPES, {
       sort: [{ field: 'Title', direction: 'asc' }],
-    });
+    }) as RecipeRecord[];
     // Fetch all join records
-    const joinRecords = await getRecords(AirtableTables.RECIPE_INGREDIENT_QUANTITY);
+    const joinRecords = await getRecords(AirtableTables.RECIPE_INGREDIENT_QUANTITY) as JoinRecord[];
     // Fetch all ingredients
-    const ingredientsTable = await getRecords(AirtableTables.INGREDIENTS);
+    const ingredientsTable = await getRecords(AirtableTables.INGREDIENTS) as IngredientRecord[];
     // Map ingredient ID to name
     const ingredientMap = Object.fromEntries(
-      ingredientsTable.map((ing: any) => [ing.id, ing.fields?.Name || ing.id])
+      ingredientsTable.map((ing: IngredientRecord) => [ing.id, ing.fields?.Name || ing.id])
     );
     // Fetch all instructions
-    const instructionsTable = await getRecords(AirtableTables.RECIPE_INSTRUCTIONS);
+    const instructionsTable = await getRecords(AirtableTables.RECIPE_INSTRUCTIONS) as InstructionRecord[];
     // For each recipe, attach its ingredients and instructions
-    const recipesWithIngredients = recipes.map((recipe: any) => {
-      const recipeIngredients = joinRecords.filter((jr: any) => {
+    const recipesWithIngredients = recipes.map((recipe: RecipeRecord) => {
+      const recipeIngredients = joinRecords.filter((jr: JoinRecord) => {
         return Array.isArray(jr.fields?.Recipe) && jr.fields.Recipe.includes(recipe.id);
-      }).map((jr: any) => {
+      }).map((jr: JoinRecord) => {
         const quantityStr = jr.fields?.Quantity;
         let quantity = 0;
         let unit = '';
@@ -69,16 +109,16 @@ export async function GET() {
         const ingredientId = Array.isArray(jr.fields?.Ingredient) ? jr.fields.Ingredient[0] : jr.fields?.Ingredient;
         return {
           id: ingredientId,
-          name: ingredientMap[ingredientId] || '',
+          name: ingredientId ? ingredientMap[ingredientId] || '' : '',
           quantity,
           unit,
         };
       });
       // Fetch and order instructions for this recipe
       const recipeInstructions = instructionsTable
-        .filter((inst: any) => Array.isArray(inst.fields?.Recipe) && inst.fields.Recipe.includes(recipe.id))
-        .sort((a: any, b: any) => (a.fields?.Order || 0) - (b.fields?.Order || 0))
-        .map((inst: any) => ({ text: inst.fields?.Instruction || '', order: inst.fields?.Order || 0 }));
+        .filter((inst: InstructionRecord) => Array.isArray(inst.fields?.Recipe) && inst.fields.Recipe.includes(recipe.id))
+        .sort((a: InstructionRecord, b: InstructionRecord) => (a.fields?.Order || 0) - (b.fields?.Order || 0))
+        .map((inst: InstructionRecord) => ({ text: inst.fields?.Instruction || '', order: inst.fields?.Order || 0 }));
       return {
         ...recipe,
         ingredients: recipeIngredients,
@@ -87,7 +127,7 @@ export async function GET() {
     });
     return NextResponse.json(recipesWithIngredients);
   } catch (error) {
-    return NextResponse.json({ error: (error as any)?.message || 'Erreur inconnue' }, { status: 500 });
+    return NextResponse.json({ error: (error as Error)?.message || 'Erreur inconnue' }, { status: 500 });
   }
 }
 
@@ -107,8 +147,7 @@ export async function POST(req: Request) {
       llm: new ChatOpenAI({
         openAIApiKey: apiKey,
         model: 'gpt-3.5-turbo',
-        temperature: 0.7,
-        maxTokens: 1200,
+        temperature: 1.2,
       }),
       tools: [],
       responseFormat: recipesSchema,
@@ -116,87 +155,30 @@ export async function POST(req: Request) {
 
     // Correction : transmettre la liste complète des ingrédients (id, name) et demander d'utiliser exactement ces noms
     const ingredientListJson = JSON.stringify(ingredients);
-    let prompt = `Contexte
-Tu es un assistant culinaire francophone chargé de proposer des recettes françaises authentiques.
 
-Je te fournis :
-- Une liste d'ingrédients disponibles (format JSON, propriétés id et name).
-- Des intolérances (ex. lactose, gluten, fruits à coque).
+    const prompt = `Tu es un chef culinaire français expert. Crée 2-4 recettes délicieuses en utilisant UNIQUEMENT les ingrédients fournis.
 
-Objectif : Générer une ou plusieurs recettes (pour ${servings} personne(s) chacune) utilisant uniquement les ingrédients fournis et aucun autre. Les recettes doivent être reconnues en France ; n'invente ni recettes, ni ingrédients.
+    CONTRAINTES STRICTES :
+    - Utilise TOUS les ingrédients fournis au moins une fois
+    - N'ajoute AUCUN ingrédient supplémentaire
+    - Respecte les intolérances : ${Array.isArray(intolerances) && intolerances.length > 0 ? intolerances.map((i: unknown) => typeof i === 'object' && i !== null && 'name' in i ? (i as { name: string }).name : i).join(", ") : "aucune"}
+    - Portions : ${servings} personne(s) par recette
 
-Règles absolues
-- Langue : réponds uniquement en français.
-- Vérification des intolérances : écarte tout ingrédient contenant un composant interdit. Si aucun ingrédient compatible ne reste, réponds avec un objet JSON {"error":"Aucune recette possible avec les intolérances données."}.
-- Structure JSON obligatoire (sans Markdown, ni texte hors JSON).
-- Ordre et granularité des étapes :
-  * Les étapes sont séquentielles et obligatoires ; ne saute rien.
-  * Chaque étape décrit une seule action culinaire majeure (préparer, couper, chauffer, servir…).
-  * Numérote-les via le champ order, en partant de 1 et en incrémentant de 1 ; aucun doublon ni saut de numéro.
-- Champ ingredients : tableau d'objets {id, name, quantity, unit} où id et name doivent correspondre exactement à la liste fournie.
-- Champ instructions : tableau d'objets {text, order} conformément à la règle 4.
-- Champ servings : toujours la valeur ${servings}.
-- Ajuster les quantités d'ingrédients proportionnellement au nombre de portions.
-- Ajuster les temps de préparation et de cuisson en fonction du nombre de portions (légèrement plus long pour plus de portions).
-- Aucun champ supplémentaire n'est autorisé.
+    INGRÉDIENTS DISPONIBLES : ${ingredientListJson}
 
-RÈGLE CRITIQUE - INGRÉDIENTS STRICTEMENT LIMITÉS :
-- Tu ne peux utiliser QUE les ingrédients fournis dans la liste.
-- Tu ne peux PAS inventer, suggérer, ou utiliser d'autres ingrédients.
-- Si une recette nécessite des ingrédients supplémentaires (farine, œufs, lait, etc.), tu ne peux PAS la proposer.
-- Exemples d'erreurs à éviter :
-  * Si on te donne seulement "banane", ne propose PAS de "pain à la banane" (nécessite farine, œufs, etc.)
-  * Si on te donne seulement "pomme", ne propose PAS de "tarte aux pommes" (nécessite pâte, sucre, etc.)
-  * Si on te donne seulement "poulet", ne propose PAS de "poulet rôti" (nécessite huile, épices, etc.)
-- Propose uniquement des recettes qui peuvent être réalisées avec les ingrédients fournis, sans ajout.
-- Si les ingrédients sont insuffisants pour une recette complète, propose des préparations simples (salade, compote, etc.)
+    RÈGLES DE CRÉATION :
+    1. Varie les techniques culinaires (cru, cuit, mixé, sauté, grillé)
+    2. Propose des styles différents (entrée, plat, dessert, boisson)
+    3. Équilibre les saveurs dans chaque recette
+    4. Instructions claires et séquentielles (numérotées à partir de 1)
+    5. Quantités adaptées à ${servings} portion(s)
 
-RÈGLE CRITIQUE - INSTRUCTIONS STRICTEMENT LIMITÉES :
-- Dans les instructions, tu ne peux mentionner QUE les ingrédients fournis dans la liste.
-- Tu ne peux PAS mentionner d'autres ingrédients dans les instructions (glace, chantilly, sauce, épices, etc.)
-- Exemples d'erreurs dans les instructions à éviter :
-  * "Ajouter de la glace vanille" (glace non fournie)
-  * "Napper de sauce chocolat" (sauce non fournie)
-  * "Ajouter de la chantilly" (chantilly non fournie)
-  * "Saler et poivrer" (sel et poivre non fournis)
-  * "Ajouter des épices" (épices non fournies)
-  * "Verser de l'huile" (huile non fournie)
-- Les instructions doivent décrire uniquement la manipulation des ingrédients fournis.
-- Si un ingrédient n'est pas dans la liste fournie, il ne doit PAS apparaître dans les instructions.
+    EXEMPLES DE BONNES PRATIQUES :
+    - Avec pomme + banane → Smoothie pomme-banane + Compote fruits mixés
+    - Avec poulet + carotte → Poulet sauté aux carottes + Salade de poulet
+    - Avec tomate + mozzarella → Salade caprese + Tomates farcies
 
-Ingrédients disponibles : ${ingredientListJson}`;
-
-    if (Array.isArray(intolerances) && intolerances.length > 0) {
-      prompt += `\n\nIntolérances à respecter : ${intolerances.map((i: any) => typeof i === 'object' ? i.name : i).join(", ")}.`;
-    }
-
-    prompt += `\n\nRéponds UNIQUEMENT en JSON valide avec la structure suivante :
-{
-  "recipes": [
-    {
-      "title": "Nom de la recette",
-      "description": "Description courte",
-      "ingredients": [
-        {"id": "exact_id_from_list", "name": "exact_name_from_list", "quantity": 100, "unit": "g"}
-      ],
-      "instructions": [
-        {"text": "Première étape", "order": 1},
-        {"text": "Deuxième étape", "order": 2}
-      ],
-      "servings": ${servings},
-      "prep_time_minutes": 10,
-      "cook_time_minutes": 15
-    }
-  ]
-}`;
-
-    // Add specific instructions for servings adjustment
-    if (servings > 1) {
-      prompt += `\n\nIMPORTANT - Ajustement pour ${servings} portions :
-      - Multiplier les quantités d'ingrédients par ${servings}
-      - Augmenter légèrement les temps de préparation et cuisson (ex: +2-3 min pour 2 portions, +5-8 min pour 4 portions)
-      - Maintenir les proportions et équilibres de la recette`;
-    }
+    Réponds UNIQUEMENT en JSON valide, sans texte supplémentaire.`;
 
     const result = await agent.invoke({
       messages: [{ type: 'human', content: prompt }]
@@ -204,6 +186,6 @@ Ingrédients disponibles : ${ingredientListJson}`;
 
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json({ error: (error as any)?.message || 'Erreur inconnue' }, { status: 500 });
+    return NextResponse.json({ error: (error as Error)?.message || 'Erreur inconnue' }, { status: 500 });
   }
 } 
