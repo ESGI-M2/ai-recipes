@@ -35,6 +35,33 @@ export function RecipeCard({ recipe, onDelete, showDeleteButton = false, showSav
   const prepTime = (recipe.prep_time_minutes as number) || ((recipe.fields as { PrepTimeMinutes?: number })?.PrepTimeMinutes as number) || 0;
   const cookTime = (recipe.cook_time_minutes as number) || ((recipe.fields as { CookTimeMinutes?: number })?.CookTimeMinutes as number) || 0;
 
+  const missingIngredients = (recipe.missing_ingredients as Array<{ name: string; quantity: number; unit: string }>) || [];
+  const [savedMissing, setSavedMissing] = useState<boolean[]>(missingIngredients.map(() => false));
+  const [savingMissing, setSavingMissing] = useState<boolean[]>(missingIngredients.map(() => false));
+
+  const canSaveRecipe = missingIngredients.length === 0 || savedMissing.every(Boolean);
+
+  const handleSaveMissingIngredient = async (index: number) => {
+    setSavingMissing((prev) => prev.map((v, i) => (i === index ? true : v)));
+    try {
+      const response = await fetch("/api/ingredients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: missingIngredients[index].name }),
+      });
+      if (response.ok) {
+        setSavedMissing((prev) => prev.map((v, i) => (i === index ? true : v)));
+        toast.success(`Ingrédient ajouté : ${missingIngredients[index].name}`);
+      } else {
+        toast.error("Erreur lors de la sauvegarde de l'ingrédient");
+      }
+    } catch {
+      toast.error("Erreur lors de la sauvegarde de l'ingrédient");
+    } finally {
+      setSavingMissing((prev) => prev.map((v, i) => (i === index ? false : v)));
+    }
+  };
+
   const handleSaveRecipe = async () => {
     setIsSaving(true);
     try {
@@ -225,6 +252,30 @@ export function RecipeCard({ recipe, onDelete, showDeleteButton = false, showSav
                 </div>
               )}
             </div>
+            {/* Affichage des ingrédients manquants */}
+            {missingIngredients.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-base font-semibold text-orange-700 mb-2">Ingrédients manquants nécessaires :</h4>
+                <div className="space-y-2">
+                  {missingIngredients.map((ing, idx) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-orange-50 rounded">
+                      <span className="font-medium text-orange-900">{ing.name}</span>
+                      <span className="text-xs text-orange-700">{ing.quantity} {ing.unit}</span>
+                      <Button
+                        size="sm"
+                        variant={savedMissing[idx] ? "secondary" : "outline"}
+                        disabled={savingMissing[idx] || savedMissing[idx]}
+                        onClick={() => handleSaveMissingIngredient(idx)}
+                        className="ml-auto"
+                      >
+                        {savingMissing[idx] ? "Ajout..." : savedMissing[idx] ? "Ajouté" : "Ajouter à Airtable"}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-xs text-orange-600 mt-2">Vous devez ajouter tous les ingrédients manquants avant de pouvoir sauvegarder la recette.</div>
+              </div>
+            )}
           </div>
 
           <Separator className="my-6 sm:my-8" />
@@ -265,7 +316,7 @@ export function RecipeCard({ recipe, onDelete, showDeleteButton = false, showSav
               <Button 
                 onClick={handleSaveRecipe}
                 className="flex-1 btn-primary"
-                disabled={isSaving}
+                disabled={isSaving || !canSaveRecipe}
               >
                 {isSaving ? (
                   <div className="flex items-center gap-2">

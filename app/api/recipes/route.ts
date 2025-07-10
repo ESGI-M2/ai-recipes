@@ -59,15 +59,21 @@ const ingredientObjectSchema = z.object({
   unit: z.string().describe("Unité pour la quantité, ex : 'g', 'kg', 'tasse', 'c.à.c.', 'ml', etc."),
 });
 
+const missingIngredientObjectSchema = z.object({
+  name: z.string().describe("Nom de l'ingrédient manquant (non fourni dans la liste d'entrée)"),
+  quantity: z.number().describe("Quantité de l'ingrédient manquant"),
+  unit: z.string().describe("Unité de l'ingrédient manquant"),
+});
+
 const recipeSchema = z.object({
   title: z.string().describe("Nom de la recette."),
   ingredients: z.array(ingredientObjectSchema).describe("Liste d'ingrédients, chaque ingrédient avec nom, quantité (nombre) et unité (chaîne). N'utiliser que les ingrédients fournis."),
+  missing_ingredients: z.array(missingIngredientObjectSchema).optional().describe("Liste des ingrédients manquants nécessaires à la recette, non présents dans la liste d'entrée. Peut être vide ou absent si aucun ingrédient manquant."),
   instructions: z.array(instructionObjectSchema).describe("Liste d'instructions, chaque instruction est un objet avec texte et ordre."),
   description: z.string().describe("Courte description de la recette."),
   servings: z.number().describe("Nombre de portions de la recette. Toujours 1."),
   prep_time_minutes: z.number().describe("Temps de préparation en minutes."),
   cook_time_minutes: z.number().describe("Temps de cuisson en minutes."),
-  // removed missing_ingredients
 });
 const recipesSchema = z.object({
   recipes: z.array(recipeSchema)
@@ -164,7 +170,7 @@ export async function POST(req: Request) {
     - Toutes les instructions en français
     - Tous les noms d'ingrédients en français
 
-    Crée 3-10 recettes délicieuses en utilisant UNIQUEMENT les ingrédients alimentaires fournis.
+    Crée 3-10 recettes délicieuses en utilisant UNIQUEMENT les ingrédients alimentaires fournis. Si les ingrédients fournis ne suffisent pas pour une recette cohérente, tu peux ajouter des ingrédients supplémentaires nécessaires. Dans ce cas, liste ces ingrédients supplémentaires dans le champ "missing_ingredients" de la recette générée, avec leur nom, quantité et unité. Les ingrédients du champ "ingredients" doivent TOUJOURS être issus de la liste d'entrée. Les ingrédients du champ "missing_ingredients" ne doivent JAMAIS être dans la liste d'entrée.
 
     NOMBRE DE RECETTES :
     - Génère 3 recettes minimum
@@ -179,24 +185,26 @@ export async function POST(req: Request) {
     - Si un ingrédient n'est pas comestible, ne l'utilise PAS dans tes recettes
 
     CONTRAINTES STRICTES :
-    - Utilise UNIQUEMENT les ingrédients alimentaires fournis
-    - N'ajoute AUCUN ingrédient supplémentaire
+    - Utilise UNIQUEMENT les ingrédients alimentaires fournis dans le champ "ingredients"
+    - N'ajoute AUCUN ingrédient supplémentaire dans "ingredients"
+    - Si tu ajoutes des ingrédients nécessaires, liste-les dans "missing_ingredients" (nom, quantité, unité)
     - Respecte les intolérances : ${Array.isArray(intolerances) && intolerances.length > 0 ? intolerances.map((i: unknown) => typeof i === 'object' && i !== null && 'name' in i ? (i as { name: string }).name : i).join(", ") : "aucune"}
     - Portions : ${servings} personne(s) par recette
 
     INGRÉDIENTS DISPONIBLES : ${ingredientListJson}
 
     RÈGLES DE CRÉATION :
-    1. Utilise SEULEMENT des ingrédients comestibles/alimentaires
-    2. Varie les techniques culinaires (cru, cuit, mixé, sauté, grillé, rôti, braisé, frit, vapeur)
-    3. Propose une grande variété de styles (entrée, plat principal, dessert, boisson, snack, apéritif)
-    4. Équilibre les saveurs dans chaque recette
-    5. Instructions claires et séquentielles (numérotées à partir de 1)
-    6. ⚠️ QUANTITÉS OBLIGATOIRES : Adapte TOUTES les quantités d'ingrédients au nombre de personnes (${servings})
+    1. Utilise SEULEMENT des ingrédients comestibles/alimentaires dans "ingredients"
+    2. Si tu ajoutes des ingrédients nécessaires, liste-les dans "missing_ingredients" (nom, quantité, unité)
+    3. Varie les techniques culinaires (cru, cuit, mixé, sauté, grillé, rôti, braisé, frit, vapeur)
+    4. Propose une grande variété de styles (entrée, plat principal, dessert, boisson, snack, apéritif)
+    5. Équilibre les saveurs dans chaque recette
+    6. Instructions claires et séquentielles (numérotées à partir de 1)
+    7. ⚠️ QUANTITÉS OBLIGATOIRES : Adapte TOUTES les quantités d'ingrédients au nombre de personnes (${servings})
        - Pour ${servings} personne(s), calcule les quantités proportionnellement
        - Exemple : si 1 portion = 100g, alors ${servings} portions = ${servings * 100}g
        - Utilise des quantités réalistes et précises pour ${servings} personne(s)
-    7. Créativité : Plus il y a d'ingrédients, plus tu peux être créatif et proposer de recettes
+    8. Créativité : Plus il y a d'ingrédients, plus tu peux être créatif et proposer de recettes
 
     FORMAT JSON EXACT ATTENDU :
     {
@@ -211,10 +219,21 @@ export async function POST(req: Request) {
               "unit": "portion"
             }
           ],
+          "missing_ingredients": [
+            {
+              "name": "Nom ingrédient manquant",
+              "quantity": 1,
+              "unit": "g"
+            }
+          ],
           "instructions": [
             {
               "text": "Description de l'étape",
               "order": 1
+            },
+            {
+              "text": "Description de l'étape suivante",
+              "order": 2
             }
           ],
           "description": "Description courte de la recette",
@@ -229,16 +248,20 @@ export async function POST(req: Request) {
     - title : nom de la recette (string)
     - ingredients : array d'objets avec id, name, quantity (number), unit (string)
       ⚠️ IMPORTANT : Les quantités doivent être calculées pour ${servings} personne(s)
-    - instructions : array d'objets avec text (string) et order (number)
+    - missing_ingredients : array d'objets (nom, quantité, unité) si besoin, sinon [] ou absent
+    - instructions : array d'objets avec text (string) et order (number) OBLIGATOIRE
+      ⚠️ CRUCIAL : Chaque instruction DOIT avoir un champ "order" commençant à 1 et s'incrémentant
     - description : description courte (string)
     - servings : ${servings} (number)
     - prep_time_minutes : temps préparation en minutes (number)
     - cook_time_minutes : temps cuisson en minutes (number)
 
+    ⚠️ ATTENTION : Chaque instruction dans le tableau "instructions" DOIT avoir un champ "order" avec un numéro séquentiel (1, 2, 3, etc.). Ne jamais oublier ce champ !
+
     EXEMPLES DE BONNES PRATIQUES (en français) :
     - Avec pomme + banane → Smoothie pomme-banane + Compote de fruits mixés
     - Avec poulet + carotte → Poulet sauté aux carottes + Salade de poulet
-    - Avec tomate + mozzarella → Salade caprese + Tomates farcies
+    - Avec tomate + mozzarella (si mozzarella manquante) → Salade caprese (mozzarella dans missing_ingredients)
 
     RÉPONSE FINALE :
     - Réponds UNIQUEMENT en JSON valide

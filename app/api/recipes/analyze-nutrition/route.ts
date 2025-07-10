@@ -6,38 +6,38 @@ import { z } from 'zod';
 export const runtime = 'edge';
 
 const nutritionSchema = z.object({
-  calories: z.number().min(0).max(5000).describe("Calories totales en kcal"),
-  protein: z.number().min(0).max(200).describe("Protéines en grammes"),
-  carbs: z.number().min(0).max(500).describe("Glucides en grammes"),
-  fat: z.number().min(0).max(200).describe("Lipides en grammes"),
-  fiber: z.number().min(0).max(100).describe("Fibres en grammes"),
-  sugar: z.number().min(0).max(200).describe("Sucres en grammes"),
-  sodium: z.number().min(0).max(5000).describe("Sodium en mg"),
+  calories: z.number().min(0).describe("Calories totales en kcal"),
+  protein: z.number().min(0).describe("Protéines en grammes"),
+  carbs: z.number().min(0).describe("Glucides en grammes"),
+  fat: z.number().min(0).describe("Lipides en grammes"),
+  fiber: z.number().min(0).describe("Fibres en grammes"),
+  sugar: z.number().min(0).describe("Sucres en grammes"),
+  sodium: z.number().min(0).describe("Sodium en mg"),
   vitamins: z.object({
-    A: z.number().min(0).max(10000).optional().describe("Vitamine A en µg"),
-    C: z.number().min(0).max(1000).optional().describe("Vitamine C en mg"),
-    D: z.number().min(0).max(100).optional().describe("Vitamine D en µg"),
-    E: z.number().min(0).max(100).optional().describe("Vitamine E en mg"),
-    K: z.number().min(0).max(1000).optional().describe("Vitamine K en µg"),
-    B1: z.number().min(0).max(10).optional().describe("Vitamine B1 en mg"),
-    B2: z.number().min(0).max(10).optional().describe("Vitamine B2 en mg"),
-    B3: z.number().min(0).max(100).optional().describe("Vitamine B3 en mg"),
-    B6: z.number().min(0).max(10).optional().describe("Vitamine B6 en mg"),
-    B12: z.number().min(0).max(100).optional().describe("Vitamine B12 en µg"),
-    folate: z.number().min(0).max(1000).optional().describe("Folate en µg")
+    A: z.number().min(0).describe("Vitamine A en µg"),
+    C: z.number().min(0).describe("Vitamine C en mg"),
+    D: z.number().min(0).describe("Vitamine D en µg"),
+    E: z.number().min(0).describe("Vitamine E en mg"),
+    K: z.number().min(0).describe("Vitamine K en µg"),
+    B1: z.number().min(0).describe("Vitamine B1 en mg"),
+    B2: z.number().min(0).describe("Vitamine B2 en mg"),
+    B3: z.number().min(0).describe("Vitamine B3 en mg"),
+    B6: z.number().min(0).describe("Vitamine B6 en mg"),
+    B12: z.number().min(0).describe("Vitamine B12 en µg"),
+    folate: z.number().min(0).describe("Folate en µg")
   }).describe("Vitamines présentes"),
   minerals: z.object({
-    calcium: z.number().min(0).max(2000).optional().describe("Calcium en mg"),
-    iron: z.number().min(0).max(100).optional().describe("Fer en mg"),
-    magnesium: z.number().min(0).max(1000).optional().describe("Magnésium en mg"),
-    phosphorus: z.number().min(0).max(2000).optional().describe("Phosphore en mg"),
-    potassium: z.number().min(0).max(5000).optional().describe("Potassium en mg"),
-    zinc: z.number().min(0).max(50).optional().describe("Zinc en mg"),
-    copper: z.number().min(0).max(10).optional().describe("Cuivre en mg"),
-    manganese: z.number().min(0).max(10).optional().describe("Manganèse en mg"),
-    selenium: z.number().min(0).max(200).optional().describe("Sélénium en µg")
+    calcium: z.number().min(0).describe("Calcium en mg"),
+    iron: z.number().min(0).describe("Fer en mg"),
+    magnesium: z.number().min(0).describe("Magnésium en mg"),
+    phosphorus: z.number().min(0).describe("Phosphore en mg"),
+    potassium: z.number().min(0).describe("Potassium en mg"),
+    zinc: z.number().min(0).describe("Zinc en mg"),
+    copper: z.number().min(0).describe("Cuivre en mg"),
+    manganese: z.number().min(0).describe("Manganèse en mg"),
+    selenium: z.number().min(0).describe("Sélénium en µg")
   }).describe("Minéraux présents"),
-  nutrition_notes: z.string().min(10).max(500).describe("Notes nutritionnelles en français")
+  nutrition_notes: z.string().min(10).describe("Notes nutritionnelles en français")
 });
 
 export async function POST(req: Request) {
@@ -104,7 +104,10 @@ export async function POST(req: Request) {
     - Additionner toutes les valeurs pour obtenir le total
     - Multiplier par le nombre de portions (${servings})
     - Arrondir à 1 décimale pour les macronutriments, 0 décimale pour les vitamines/minéraux
-    - Si un ingrédient n'est pas dans la liste de référence, utiliser des valeurs moyennes réalistes
+    - Si un ingrédient n'est pas dans la liste de référence, utiliser des valeurs moyennes réalistes d'un aliment similaire (ne jamais mettre 0 sauf si c'est scientifiquement justifié)
+    - Pour chaque vitamine et minéral, donne une estimation même approximative basée sur des tables de composition ou des aliments proches. N'utilise jamais 0 par défaut.
+
+    IMPORTANT : Pour chaque nutriment, si la donnée exacte n'est pas connue, donne une estimation réaliste basée sur des aliments similaires ou des moyennes. N'utilise jamais 0 sauf si c'est scientifiquement justifié.
 
     Réponds UNIQUEMENT en JSON valide, sans texte supplémentaire.`;
 
