@@ -30,7 +30,7 @@ export function RecipeCard({ recipe, onDelete, showDeleteButton = false, showSav
   const instructions = (recipe.instructions as Array<{ text: string; order: number }>) || [];
   const servings = (recipe.servings as number) || ((recipe.fields as { Servings?: number })?.Servings as number) || 1;
   const difficulty = (recipe.difficulty as string) || "Moyenne";
-  const cuisine = (recipe.cuisine as string) || "Française";
+  const cuisine = (recipe.cuisine as string) || undefined;
   const recipeId = (recipe.id as string) || "";
   const prepTime = (recipe.prep_time_minutes as number) || ((recipe.fields as { PrepTimeMinutes?: number })?.PrepTimeMinutes as number) || 0;
   const cookTime = (recipe.cook_time_minutes as number) || ((recipe.fields as { CookTimeMinutes?: number })?.CookTimeMinutes as number) || 0;
@@ -126,9 +126,11 @@ export function RecipeCard({ recipe, onDelete, showDeleteButton = false, showSav
                 <ChefHat className="w-3 h-3" />
                 {difficulty}
               </Badge>
-              <Badge variant="outline" className="badge-primary text-xs">
-                {cuisine}
-              </Badge>
+              {cuisine && (
+                <Badge variant="outline" className="badge-primary text-xs">
+                  {cuisine}
+                </Badge>
+              )}
             </div>
           </div>
 

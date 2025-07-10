@@ -123,6 +123,14 @@ interface MultiSelectProps
    * Receives the new option object and a function to update selected values.
    */
   onAddAndSelectOption?: (option: { label: string; value: string }, select: (values: string[]) => void) => void;
+
+  addOptionPlaceholder?: string;
+  addButtonLabel?: string;
+  searchPlaceholder?: string;
+  noResultsLabel?: string;
+  selectAllLabel?: string;
+  clearLabel?: string;
+  closeLabel?: string;
 }
 
 export const MultiSelect = React.forwardRef<
@@ -142,6 +150,13 @@ export const MultiSelect = React.forwardRef<
       maxCount = 3,
       modalPopover = false,
       className,
+      addOptionPlaceholder,
+      addButtonLabel,
+      searchPlaceholder,
+      noResultsLabel,
+      selectAllLabel,
+      clearLabel,
+      closeLabel,
       ...props
     },
     ref
@@ -323,7 +338,7 @@ export const MultiSelect = React.forwardRef<
             <input
               type="text"
               className="flex-1 px-2 py-1 border rounded text-sm"
-              placeholder="Add option..."
+              placeholder={addOptionPlaceholder || "Add option..."}
               value={newOptionValue}
               onChange={(e) => setNewOptionValue(e.target.value)}
               onKeyDown={handleAddOptionKeyDown}
@@ -335,16 +350,16 @@ export const MultiSelect = React.forwardRef<
               onClick={handleAddOption}
               disabled={!newOptionValue.trim() || options.some((opt) => opt.value === newOptionValue.trim())}
             >
-              Add
+              {addButtonLabel || "Add"}
             </Button>
           </div>
           <Command>
             <CommandInput
-              placeholder="Search..."
+              placeholder={searchPlaceholder || "Search..."}
               onKeyDown={handleInputKeyDown}
             />
             <CommandList>
-              <CommandEmpty>No results found.</CommandEmpty>
+              <CommandEmpty>{noResultsLabel || "No results found."}</CommandEmpty>
               <CommandGroup>
                 <CommandItem
                   key="all"
@@ -361,7 +376,7 @@ export const MultiSelect = React.forwardRef<
                   >
                     <CheckIcon className="h-4 w-4" />
                   </div>
-                  <span>(Select All)</span>
+                  <span>{selectAllLabel || "(Select All)"}</span>
                 </CommandItem>
                 {options.map((option) => {
                   const isSelected = selectedValues.includes(option.value);
@@ -398,7 +413,7 @@ export const MultiSelect = React.forwardRef<
                         onSelect={handleClear}
                         className="flex-1 justify-center cursor-pointer"
                       >
-                        Clear
+                        {clearLabel || "Clear"}
                       </CommandItem>
                       <Separator
                         orientation="vertical"
@@ -410,7 +425,7 @@ export const MultiSelect = React.forwardRef<
                     onSelect={() => setIsPopoverOpen(false)}
                     className="flex-1 justify-center cursor-pointer max-w-full"
                   >
-                    Close
+                    {closeLabel || "Close"}
                   </CommandItem>
                 </div>
               </CommandGroup>

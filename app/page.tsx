@@ -229,7 +229,14 @@ export default function Home() {
                       options={ingredientOptions}
                       onValueChange={setSelectedIngredients}
                       onAddAndSelectOption={handleAddAndSelectIngredientOption}
-                      placeholder="Sélectionnez vos ingrédients..."
+                      placeholder="Sélectionnez ou ajoutez un ingrédient..."
+                      addOptionPlaceholder="Ajouter un ingrédient..."
+                      addButtonLabel="Ajouter"
+                      searchPlaceholder="Rechercher..."
+                      noResultsLabel="Aucun résultat"
+                      selectAllLabel="(Tout sélectionner)"
+                      clearLabel="Effacer"
+                      closeLabel="Fermer"
                       maxCount={50}
                     />
                   )}

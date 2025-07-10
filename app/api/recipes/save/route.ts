@@ -21,18 +21,15 @@ export async function POST(req: Request) {
     };
     const created = await createRecord(AirtableTables.RECIPES, fields);
 
-    // 1. Récupérer tous les IDs valides d'ingrédients depuis Airtable
     const allIngredients = await getRecords(AirtableTables.INGREDIENTS);
     const validIngredientIds = new Set(
       (allIngredients as { id: string }[]).map((ing) => ing.id)
     );
 
-    // 2. Filtrer les ingrédients de la recette pour ne garder que ceux dont l'ID existe
     const filteredIngredients = Array.isArray(recipe.ingredients)
       ? recipe.ingredients.filter((ingredient: { id: string }) => validIngredientIds.has(ingredient.id))
       : [];
 
-    // 3. Créer les records de jointure uniquement pour ces ingrédients
     if (filteredIngredients.length > 0) {
       const joinRecords = filteredIngredients
         .map((ingredient: { id: string; quantity: number; unit: string }) => ({
@@ -43,7 +40,7 @@ export async function POST(req: Request) {
         }));
       
         if (joinRecords.length !== filteredIngredients.length) {
-        console.warn('Some ingredients are missing an id and will not be saved to the join table.');
+        console.warn('Certains ingrédients de la recette n&apos;existent pas dans Airtable et ont été ignorés:', recipe.ingredients.filter((ingredient: { id: string }) => !validIngredientIds.has(ingredient.id)));
       }
       if (joinRecords.length > 0) {
         try {
