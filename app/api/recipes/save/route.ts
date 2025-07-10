@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
-import { createRecord, createRecords } from '@/lib/axios';
+import { createRecord, createRecords, getRecords } from '@/lib/axios';
 import { AirtableTables } from '@/constants/airtable';
 
 export async function POST(req: Request) {
   try {
     const { recipe } = await req.json();
+
+    console.log('recipe', recipe);
     
     if (!recipe) {
       return NextResponse.json({ error: 'Recipe is required' }, { status: 400 });
@@ -19,9 +21,20 @@ export async function POST(req: Request) {
     };
     const created = await createRecord(AirtableTables.RECIPES, fields);
 
-    // Save ingredients to join table
-    if (Array.isArray(recipe.ingredients) && recipe.ingredients.length > 0) {
-      const joinRecords = recipe.ingredients
+    // 1. Récupérer tous les IDs valides d'ingrédients depuis Airtable
+    const allIngredients = await getRecords(AirtableTables.INGREDIENTS);
+    const validIngredientIds = new Set(
+      (allIngredients as { id: string }[]).map((ing) => ing.id)
+    );
+
+    // 2. Filtrer les ingrédients de la recette pour ne garder que ceux dont l'ID existe
+    const filteredIngredients = Array.isArray(recipe.ingredients)
+      ? recipe.ingredients.filter((ingredient: { id: string }) => validIngredientIds.has(ingredient.id))
+      : [];
+
+    // 3. Créer les records de jointure uniquement pour ces ingrédients
+    if (filteredIngredients.length > 0) {
+      const joinRecords = filteredIngredients
         .map((ingredient: { id: string; quantity: number; unit: string }) => ({
           Recipe: [created.id],
           Ingredient: [ingredient.id],
@@ -29,7 +42,7 @@ export async function POST(req: Request) {
           Unit: ingredient.unit,
         }));
       
-        if (joinRecords.length !== recipe.ingredients.length) {
+        if (joinRecords.length !== filteredIngredients.length) {
         console.warn('Some ingredients are missing an id and will not be saved to the join table.');
       }
       if (joinRecords.length > 0) {
