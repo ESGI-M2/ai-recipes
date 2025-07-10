@@ -170,7 +170,7 @@ export function RecipeCard({ recipe, onDelete, showDeleteButton = false, showSav
                   </div>
                 ) : (
                   <div className="flex items-center gap-1">
-                    <Trash2 className="w-3 h-3" />
+                    <Trash2 className="w-3 h-3 lucide-trash" />
                     <span className="text-xs hidden sm:inline">Supprimer</span>
                   </div>
                 )}
@@ -361,7 +361,7 @@ export function RecipeCard({ recipe, onDelete, showDeleteButton = false, showSav
                 </div>
               ) : (
                 <div className="flex items-center gap-1">
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="w-3 h-3 lucide-trash" />
                   <span className="text-xs">Supprimer</span>
                 </div>
               )}

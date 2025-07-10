@@ -126,7 +126,7 @@ export default function RecipesPage() {
             </div>
             <Link href="/">
               <Button className="btn-primary w-full sm:w-auto">
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-4 h-4 mr-2 lucide-plus" />
                 Nouvelle recette
               </Button>
             </Link>
