@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     // Save ingredients to join table
     if (Array.isArray(recipe.ingredients) && recipe.ingredients.length > 0) {
       const joinRecords = recipe.ingredients
-        .map((ingredient: any) => ({
+        .map((ingredient: { id: string; quantity: number; unit: string }) => ({
           Recipe: [created.id],
           Ingredient: [ingredient.id],
           Quantity: ingredient.quantity,
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       }
       if (joinRecords.length > 0) {
         try {
-          const joinResult = await createRecords(AirtableTables.RECIPE_INGREDIENT_QUANTITY, joinRecords);
+          await createRecords(AirtableTables.RECIPE_INGREDIENT_QUANTITY, joinRecords);
         } catch (err) {
           console.error('Error creating join records:', err, joinRecords);
           return NextResponse.json({ error: 'Failed to save recipe ingredients', details: err }, { status: 500 });
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
     // Save instructions to join table
     if (Array.isArray(recipe.instructions) && recipe.instructions.length > 0) {
-      const instructionRecords = recipe.instructions.map((inst: any) => ({
+      const instructionRecords = recipe.instructions.map((inst: { text: string; order: number }) => ({
         Instruction: inst.text,
         Order: inst.order,
         Recipe: [created.id],
@@ -53,6 +53,10 @@ export async function POST(req: Request) {
     }
     return NextResponse.json(created);
   } catch (error) {
-    return NextResponse.json({ error: error?.message || 'Unknown error' }, { status: 500 });
+    let message = 'Unknown error';
+    if (error instanceof Error) {
+      message = error.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 } 

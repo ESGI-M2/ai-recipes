@@ -33,15 +33,20 @@ interface InstructionRecord extends AirtableRecord {
   };
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const id = url.pathname.split("/").filter(Boolean).pop();
+  if (!id) {
+    return NextResponse.json({ error: 'Recipe ID is required' }, { status: 400 });
+  }
   try {
     // Fetch the recipe
-    const recipe = await getRecord(AirtableTables.RECIPES, params.id);
+    const recipe = await getRecord(AirtableTables.RECIPES, id);
 
     // Fetch all join records for this recipe (ingredients)
     const ingredientJoins = await getRecords(AirtableTables.RECIPE_INGREDIENT_QUANTITY) as JoinRecord[];
     const recipeIngredientJoins = ingredientJoins.filter(
-      (jr: JoinRecord) => Array.isArray(jr.fields?.Recipe) && jr.fields.Recipe.includes(params.id)
+      (jr: JoinRecord) => Array.isArray(jr.fields?.Recipe) && jr.fields.Recipe.includes(id)
     );
 
     // Fetch all ingredients to get their names
@@ -53,7 +58,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     // Fetch all join records for this recipe (instructions)
     const instructionJoins = await getRecords(AirtableTables.RECIPE_INSTRUCTIONS) as InstructionRecord[];
     const recipeInstructionJoins = instructionJoins.filter(
-      (ir: InstructionRecord) => Array.isArray(ir.fields?.Recipe) && ir.fields.Recipe.includes(params.id)
+      (ir: InstructionRecord) => Array.isArray(ir.fields?.Recipe) && ir.fields.Recipe.includes(id)
     );
 
     // Add ingredient names to the ingredient join records

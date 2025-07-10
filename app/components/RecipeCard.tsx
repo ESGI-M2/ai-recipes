@@ -24,16 +24,16 @@ export function RecipeCard({ recipe, onDelete, showDeleteButton = false, showSav
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Extract recipe data with proper typing and Airtable compatibility
-  const title = (recipe.title as string) || ((recipe.fields as any)?.Title as string) || "Recette sans titre";
-  const description = (recipe.description as string) || ((recipe.fields as any)?.Description as string) || "";
+  const title = (recipe.title as string) || ((recipe.fields as { Title?: string })?.Title as string) || "Recette sans titre";
+  const description = (recipe.description as string) || ((recipe.fields as { Description?: string })?.Description as string) || "";
   const ingredients = (recipe.ingredients as Array<{ name: string; quantity: number; unit: string }>) || [];
   const instructions = (recipe.instructions as Array<{ text: string; order: number }>) || [];
-  const servings = (recipe.servings as number) || ((recipe.fields as any)?.Servings as number) || 1;
+  const servings = (recipe.servings as number) || ((recipe.fields as { Servings?: number })?.Servings as number) || 1;
   const difficulty = (recipe.difficulty as string) || "Moyenne";
   const cuisine = (recipe.cuisine as string) || "Française";
   const recipeId = (recipe.id as string) || "";
-  const prepTime = (recipe.prep_time_minutes as number) || ((recipe.fields as any)?.PrepTimeMinutes as number) || 0;
-  const cookTime = (recipe.cook_time_minutes as number) || ((recipe.fields as any)?.CookTimeMinutes as number) || 0;
+  const prepTime = (recipe.prep_time_minutes as number) || ((recipe.fields as { PrepTimeMinutes?: number })?.PrepTimeMinutes as number) || 0;
+  const cookTime = (recipe.cook_time_minutes as number) || ((recipe.fields as { CookTimeMinutes?: number })?.CookTimeMinutes as number) || 0;
 
   const handleSaveRecipe = async () => {
     setIsSaving(true);
@@ -67,7 +67,7 @@ export function RecipeCard({ recipe, onDelete, showDeleteButton = false, showSav
       } else {
         toast.error("Erreur lors de la sauvegarde");
       }
-    } catch (error) {
+    } catch {
       toast.error("Erreur lors de la sauvegarde");
     } finally {
       setIsSaving(false);
@@ -93,7 +93,7 @@ export function RecipeCard({ recipe, onDelete, showDeleteButton = false, showSav
       } else {
         toast.error("Erreur lors de la suppression");
       }
-    } catch (error) {
+    } catch {
       toast.error("Erreur lors de la suppression");
     } finally {
       setIsDeleting(false);
