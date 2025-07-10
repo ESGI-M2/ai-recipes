@@ -156,10 +156,30 @@ export async function POST(req: Request) {
     // Correction : transmettre la liste complète des ingrédients (id, name) et demander d'utiliser exactement ces noms
     const ingredientListJson = JSON.stringify(ingredients);
 
-    const prompt = `Tu es un chef culinaire français expert. Crée 2-4 recettes délicieuses en utilisant UNIQUEMENT les ingrédients fournis.
+    const prompt = `Tu es un chef culinaire français expert. Tu dois TOUJOURS répondre en français.
+
+    LANGUE OBLIGATOIRE : Français uniquement
+    - Tous les titres de recettes en français
+    - Toutes les descriptions en français
+    - Toutes les instructions en français
+    - Tous les noms d'ingrédients en français
+
+    Crée 3-10 recettes délicieuses en utilisant UNIQUEMENT les ingrédients alimentaires fournis.
+
+    NOMBRE DE RECETTES :
+    - Génère 3 recettes minimum
+    - Génère jusqu'à 10 recettes maximum
+    - Adapte le nombre selon la créativité possible avec les ingrédients
+    - Plus d'ingrédients = plus de recettes possibles
+    - Varie les styles : entrées, plats, desserts, boissons, snacks
+
+    ⚠️ RÈGLE ABSOLUE : Utilise SEULEMENT des ingrédients comestibles/alimentaires !
+    - IGNORE complètement tout ingrédient qui n'est pas de la nourriture
+    - N'utilise que les fruits, légumes, viandes, poissons, céréales, épices, produits laitiers, etc.
+    - Si un ingrédient n'est pas comestible, ne l'utilise PAS dans tes recettes
 
     CONTRAINTES STRICTES :
-    - Utilise TOUS les ingrédients fournis au moins une fois
+    - Utilise UNIQUEMENT les ingrédients alimentaires fournis
     - N'ajoute AUCUN ingrédient supplémentaire
     - Respecte les intolérances : ${Array.isArray(intolerances) && intolerances.length > 0 ? intolerances.map((i: unknown) => typeof i === 'object' && i !== null && 'name' in i ? (i as { name: string }).name : i).join(", ") : "aucune"}
     - Portions : ${servings} personne(s) par recette
@@ -167,24 +187,70 @@ export async function POST(req: Request) {
     INGRÉDIENTS DISPONIBLES : ${ingredientListJson}
 
     RÈGLES DE CRÉATION :
-    1. Varie les techniques culinaires (cru, cuit, mixé, sauté, grillé)
-    2. Propose des styles différents (entrée, plat, dessert, boisson)
-    3. Équilibre les saveurs dans chaque recette
-    4. Instructions claires et séquentielles (numérotées à partir de 1)
-    5. Quantités adaptées à ${servings} portion(s)
+    1. Utilise SEULEMENT des ingrédients comestibles/alimentaires
+    2. Varie les techniques culinaires (cru, cuit, mixé, sauté, grillé, rôti, braisé, frit, vapeur)
+    3. Propose une grande variété de styles (entrée, plat principal, dessert, boisson, snack, apéritif)
+    4. Équilibre les saveurs dans chaque recette
+    5. Instructions claires et séquentielles (numérotées à partir de 1)
+    6. ⚠️ QUANTITÉS OBLIGATOIRES : Adapte TOUTES les quantités d'ingrédients au nombre de personnes (${servings})
+       - Pour ${servings} personne(s), calcule les quantités proportionnellement
+       - Exemple : si 1 portion = 100g, alors ${servings} portions = ${servings * 100}g
+       - Utilise des quantités réalistes et précises pour ${servings} personne(s)
+    7. Créativité : Plus il y a d'ingrédients, plus tu peux être créatif et proposer de recettes
 
-    EXEMPLES DE BONNES PRATIQUES :
-    - Avec pomme + banane → Smoothie pomme-banane + Compote fruits mixés
+    FORMAT JSON EXACT ATTENDU :
+    {
+      "recipes": [
+        {
+          "title": "Nom de la recette",
+          "ingredients": [
+            {
+              "id": "ID_ingredient",
+              "name": "Nom ingredient",
+              "quantity": 1,
+              "unit": "portion"
+            }
+          ],
+          "instructions": [
+            {
+              "text": "Description de l'étape",
+              "order": 1
+            }
+          ],
+          "description": "Description courte de la recette",
+          "servings": ${servings},
+          "prep_time_minutes": 15,
+          "cook_time_minutes": 30
+        }
+      ]
+    }
+
+    CHAMPS OBLIGATOIRES POUR CHAQUE RECETTE :
+    - title : nom de la recette (string)
+    - ingredients : array d'objets avec id, name, quantity (number), unit (string)
+      ⚠️ IMPORTANT : Les quantités doivent être calculées pour ${servings} personne(s)
+    - instructions : array d'objets avec text (string) et order (number)
+    - description : description courte (string)
+    - servings : ${servings} (number)
+    - prep_time_minutes : temps préparation en minutes (number)
+    - cook_time_minutes : temps cuisson en minutes (number)
+
+    EXEMPLES DE BONNES PRATIQUES (en français) :
+    - Avec pomme + banane → Smoothie pomme-banane + Compote de fruits mixés
     - Avec poulet + carotte → Poulet sauté aux carottes + Salade de poulet
     - Avec tomate + mozzarella → Salade caprese + Tomates farcies
 
-    Réponds UNIQUEMENT en JSON valide, sans texte supplémentaire.`;
+    RÉPONSE FINALE :
+    - Réponds UNIQUEMENT en JSON valide
+    - TOUT en français (titres, descriptions, instructions)
+    - Sans texte supplémentaire`;
 
     const result = await agent.invoke({
       messages: [{ type: 'human', content: prompt }]
     });
 
-    return NextResponse.json(result);
+    // Retourner les recettes sans analyse nutritionnelle automatique
+    return NextResponse.json({ recipes: result.structuredResponse?.recipes || [] });
   } catch (error) {
     return NextResponse.json({ error: (error as Error)?.message || 'Erreur inconnue' }, { status: 500 });
   }
