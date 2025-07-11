@@ -26,6 +26,7 @@ export default function IngredientsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [openDialogId, setOpenDialogId] = useState<string | null>(null);
 
   // Fetch ingredients
   const fetchIngredients = async () => {
@@ -200,7 +201,7 @@ export default function IngredientsPage() {
                       <Button variant="ghost" size="icon" onClick={() => startEdit(ingredient)}>
                         <Pencil className="w-4 h-4" />
                       </Button>
-                      <Dialog>
+                      <Dialog open={openDialogId === ingredient.id} onOpenChange={(open) => setOpenDialogId(open ? ingredient.id : null)}>
                         <DialogTrigger asChild>
                           <Button variant="ghost" size="icon" className="text-red-600">
                             <Trash2 className="w-4 h-4" />
@@ -208,12 +209,35 @@ export default function IngredientsPage() {
                         </DialogTrigger>
                         <DialogContent>
                           <div className="text-center">
-                            <p>Supprimer l&apos;ingrédient <span className="font-semibold">{ingredient.fields.Name}</span> ?</p>
+                            <p>
+                              Supprimer l&apos;ingrédient{" "}
+                              <span className="font-semibold">{ingredient.fields.Name}</span> ?
+                            </p>
                             <div className="flex justify-center gap-4 mt-6">
-                              <Button variant="outline" onClick={() => handleDelete(ingredient.id)} disabled={deletingId === ingredient.id}>
-                                {deletingId === ingredient.id ? <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></span> : "Oui, supprimer"}
+                              <Button
+                                variant="outline"
+                                onClick={async () => {
+                                  await handleDelete(ingredient.id);
+                                  setOpenDialogId(null);
+                                }}
+                                disabled={deletingId === ingredient.id}
+                              >
+                                {deletingId === ingredient.id ? (
+                                  <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></span>
+                                ) : (
+                                  "Oui, supprimer"
+                                )}
                               </Button>
-                              <Button variant="ghost" onClick={() => setDeletingId(null)} disabled={deletingId === ingredient.id}>Annuler</Button>
+                              <Button
+                                variant="ghost"
+                                onClick={() => {
+                                  setDeletingId(null);
+                                  setOpenDialogId(null);
+                                }}
+                                disabled={deletingId === ingredient.id}
+                              >
+                                Annuler
+                              </Button>
                             </div>
                           </div>
                         </DialogContent>

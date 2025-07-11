@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getRecords, createRecord, updateRecord } from '@/lib/axios';
+import { getRecords, createRecord, updateRecord, deleteRecord } from '@/lib/axios';
 import { AirtableTables } from '@/constants/airtable';
 
 export async function GET() {
@@ -40,4 +40,20 @@ export async function PATCH(req: Request) {
         console.error('Error updating ingredient:', error);
         return NextResponse.json({ error: 'Failed to update ingredient' }, { status: 500 });
     }
+}
+
+export async function DELETE(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+
+  if (!id) {
+    return NextResponse.json({ error: "ID manquant" }, { status: 400 });
+  }
+
+  try {
+    await deleteRecord(AirtableTables.INGREDIENTS, id);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  }
 }

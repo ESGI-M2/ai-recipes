@@ -52,6 +52,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Clé API OpenAI non définie' }, { status: 500 });
     }
 
+    if (typeof servings !== 'number' || servings <= 0) {
+      return NextResponse.json({ error: 'Le nombre de portions doit être un nombre positif.' }, { status: 400 });
+    }
+
     const agent = createReactAgent({
       llm: new ChatOpenAI({
         openAIApiKey: apiKey,
