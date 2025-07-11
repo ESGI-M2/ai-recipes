@@ -93,7 +93,13 @@ export async function POST(req: Request) {
       messages: [{ type: 'human', content: prompt }]
     });
 
-    return NextResponse.json(result);
+    try {
+      const result = await agent.invoke({messages: [{ type: 'human', content: prompt }]});
+      return NextResponse.json(result);
+    } catch (e) {
+      return NextResponse.json({ error: "Erreur d'analyse ou réponse invalide", details: e }, { status: 500 });
+    }
+    
   } catch (error) {
     return NextResponse.json({ error: (error as Error)?.message || 'Erreur inconnue' }, { status: 500 });
   }
