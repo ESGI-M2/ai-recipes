@@ -53,6 +53,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Clé API OpenAI non définie' }, { status: 500 });
     }
 
+    if (typeof servings !== 'number' || servings <= 0) {
+      return NextResponse.json({ error: 'Le nombre de portions doit être un nombre positif.' }, { status: 400 });
+    }
+
     const agent = createReactAgent({
       llm: new ChatOpenAI({
         openAIApiKey: apiKey,
@@ -111,11 +115,13 @@ export async function POST(req: Request) {
 
     Réponds UNIQUEMENT en JSON valide, sans texte supplémentaire.`;
 
-    const result = await agent.invoke({
-      messages: [{ type: 'human', content: prompt }]
-    });
+    try {
+      const result = await agent.invoke({messages: [{ type: 'human', content: prompt }]});
+      return NextResponse.json(result.structuredResponse);
+    } catch (e) {
+      return NextResponse.json({ error: "Erreur d'analyse ou réponse invalide", details: e }, { status: 500 });
+    }
 
-    return NextResponse.json(result.structuredResponse);
   } catch (error) {
     return NextResponse.json({ error: (error as Error)?.message || 'Erreur inconnue' }, { status: 500 });
   }

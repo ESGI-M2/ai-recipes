@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { getRecords, getRecord } from '@/lib/axios';
 import { AirtableTables } from '@/constants/airtable';
 
-// Define types for Airtable records
 interface AirtableRecord {
   id: string;
   createdTime?: string;
@@ -37,31 +36,26 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const id = url.pathname.split("/").filter(Boolean).pop();
   if (!id) {
-    return NextResponse.json({ error: 'Recipe ID is required' }, { status: 400 });
+    return NextResponse.json({ error: 'L\'ID de la recette est requis' }, { status: 400 });
   }
   try {
-    // Fetch the recipe
     const recipe = await getRecord(AirtableTables.RECIPES, id);
 
-    // Fetch all join records for this recipe (ingredients)
     const ingredientJoins = await getRecords(AirtableTables.RECIPE_INGREDIENT_QUANTITY) as JoinRecord[];
     const recipeIngredientJoins = ingredientJoins.filter(
       (jr: JoinRecord) => Array.isArray(jr.fields?.Recipe) && jr.fields.Recipe.includes(id)
     );
 
-    // Fetch all ingredients to get their names
     const allIngredients = await getRecords(AirtableTables.INGREDIENTS) as IngredientRecord[];
     const ingredientMap = Object.fromEntries(
       allIngredients.map((ing: IngredientRecord) => [ing.id, ing.fields?.Name || ing.id])
     );
 
-    // Fetch all join records for this recipe (instructions)
     const instructionJoins = await getRecords(AirtableTables.RECIPE_INSTRUCTIONS) as InstructionRecord[];
     const recipeInstructionJoins = instructionJoins.filter(
       (ir: InstructionRecord) => Array.isArray(ir.fields?.Recipe) && ir.fields.Recipe.includes(id)
     );
 
-    // Add ingredient names to the ingredient join records
     const recipeIngredientJoinsWithNames = recipeIngredientJoins.map((join: JoinRecord) => {
       const ingredientId = Array.isArray(join.fields?.Ingredient) ? join.fields.Ingredient[0] : join.fields?.Ingredient;
       return {
@@ -70,7 +64,6 @@ export async function GET(req: Request) {
       };
     });
 
-    // Return the raw join records with ingredient names
     return NextResponse.json({
       ...recipe,
       recipe_ingredient_quantity_records: recipeIngredientJoinsWithNames,

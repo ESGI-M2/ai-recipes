@@ -173,7 +173,6 @@ export default function RecipeDetailPage() {
     setNutritionProgressMessage("Initialisation de l'analyse...");
     setIsNutritionModalOpen(true);
 
-    // Animation de progression pour l'analyse nutritionnelle
     const progressSteps = [
       { targetProgress: 10, message: "Analyse des ingrédients...", duration: 1500 },
       { targetProgress: 25, message: "Calcul des calories...", duration: 2000 },
@@ -195,7 +194,6 @@ export default function RecipeDetailPage() {
         const stepElapsed = now - stepStartTime;
         const stepProgress = Math.min(stepElapsed / step.duration, 1);
         
-        // Smooth easing function for natural progression
         const easedProgress = stepProgress * stepProgress * (3 - 2 * stepProgress);
         const currentStepProgress = stepStartProgress + (step.targetProgress - stepStartProgress) * easedProgress;
         
@@ -245,37 +243,30 @@ export default function RecipeDetailPage() {
     }
   };
 
-  // Helper function to get recipe title
   const getRecipeTitle = (recipe: Recipe) => {
     return recipe.fields?.Title || 'Recette sans titre';
   };
 
-  // Helper function to get recipe description
   const getRecipeDescription = (recipe: Recipe) => {
     return recipe.fields?.Description;
   };
 
-  // Helper function to get recipe servings
   const getRecipeServings = (recipe: Recipe) => {
     return recipe.servings || recipe.fields?.Servings;
   };
 
-  // Helper function to get recipe prep time
   const getRecipePrepTime = (recipe: Recipe) => {
     return recipe.prep_time_minutes || recipe.fields?.PrepTimeMinutes;
   };
 
-  // Helper function to get recipe cook time
   const getRecipeCookTime = (recipe: Recipe) => {
     return recipe.cook_time_minutes || recipe.fields?.CookTimeMinutes;
   };
 
-  // Helper function to get recipe creation date
   const getRecipeCreatedAt = (recipe: Recipe) => {
     return recipe.created_at || recipe.createdTime;
   };
 
-  // Helper function to get ingredients from join table
   const getIngredients = (recipe: Recipe) => {
     if (recipe.ingredients) return recipe.ingredients;
     
