@@ -58,6 +58,23 @@ export async function POST(req: Request) {
       }));
       await createRecords(AirtableTables.RECIPE_INSTRUCTIONS, instructionRecords);
     }
+
+    if (Array.isArray(recipe.intolerances) && recipe.intolerances.length > 0) {
+      const allIntolerances = await getRecords(AirtableTables.FOOD_INTOLERANCES);
+      const validIntoleranceIds = new Set((allIntolerances as { id: string }[]).map((intol) => intol.id));
+      const filteredIntolerances = recipe.intolerances.filter((id: string) => validIntoleranceIds.has(id));
+      if (filteredIntolerances.length > 0) {
+        const { updateRecord } = await import('@/lib/axios');
+        for (const intoleranceId of filteredIntolerances) {
+          const intolerance = (allIntolerances as any[]).find((i) => i.id === intoleranceId);
+          const currentRelated = intolerance?.fields?.['Related Recipes'] || [];
+          const updatedRelated = Array.isArray(currentRelated)
+            ? Array.from(new Set([...currentRelated, created.id]))
+            : [created.id];
+          await updateRecord(AirtableTables.FOOD_INTOLERANCES, intoleranceId, { 'Related Recipes': updatedRelated });
+        }
+      }
+    }
     return NextResponse.json(created);
   } catch (error) {
     let message = 'Unknown error';

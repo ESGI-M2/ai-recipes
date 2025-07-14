@@ -19,18 +19,6 @@ import { RecipeCard } from "./components/RecipeCard";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 
-const INTOLERANCES = [
-  { label: "Brocolis", value: "gluten" },
-  { label: "Lactose", value: "lactose" },
-  { label: "Fruits à coque", value: "nuts" },
-  { label: "Oeufs", value: "eggs" },
-  { label: "Poisson", value: "fish" },
-  { label: "Soja", value: "soy" },
-  { label: "Fruits de mer", value: "shellfish" },
-  { label: "Cacao", value: "cacao" },
-  { label: "Chocolat", value: "chocolate" },
-];
-
 export default function Home() {
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [ingredientOptions, setIngredientOptions] = useState<{ label: string; value: string }[]>([]);
@@ -41,6 +29,9 @@ export default function Home() {
   const [intolerances, setIntolerances] = useState<string[]>([]);
   const [servings, setServings] = useState(1);
   const [progress, setProgress] = useState(0);
+
+  const [intoleranceOptions, setIntoleranceOptions] = useState<{ label: string; value: string }[]>([]);
+  const [intoleranceLoading, setIntoleranceLoading] = useState(true);
 
   useEffect(() => {
     const fetchIngredients = async () => {
@@ -61,6 +52,26 @@ export default function Home() {
       }
     };
     fetchIngredients();
+  }, []);
+
+  useEffect(() => {
+    const fetchIntolerances = async () => {
+      try {
+        const response = await fetch("/api/intolerances");
+        if (!response.ok) throw new Error("Failed to fetch intolerances");
+        const data: Array<{ fields?: { Name?: string }; id: string }> = await response.json();
+        const options = (data || []).map((record) => ({
+          label: record.fields?.Name || record.id,
+          value: record.id,
+        }));
+        setIntoleranceOptions(options);
+      } catch {
+        setIntoleranceOptions([]);
+      } finally {
+        setIntoleranceLoading(false);
+      }
+    };
+    fetchIntolerances();
   }, []);
 
   const handleAddAndSelectIngredientOption = async (
@@ -86,6 +97,32 @@ export default function Home() {
       select([option.value]);
       setSelectedIngredients([option.value]);
       toast.error("Erreur lors de l'ajout de l'ingrédient");
+    }
+  };
+
+  const handleAddAndSelectIntoleranceOption = async (
+    option: { label: string; value: string },
+    select: (values: string[]) => void
+  ) => {
+    try {
+      const response = await fetch('/api/intolerances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: option.label }),
+      });
+      if (!response.ok) throw new Error('Failed to add intolerance');
+      const record = await response.json();
+      const newOption = { label: record.fields?.Name || record.id, value: record.id };
+      setIntoleranceOptions((prev) => [newOption, ...prev]);
+      const merged = [...intolerances, newOption.value];
+      select(merged);
+      setIntolerances(merged);
+      toast.success("Intolérance ajoutée avec succès !");
+    } catch {
+      setIntoleranceOptions((prev) => [option, ...prev]);
+      select([option.value]);
+      setIntolerances([option.value]);
+      toast.error("Erreur lors de l'ajout de l'intolérance");
     }
   };
 
@@ -159,8 +196,8 @@ export default function Home() {
       const data = await response.json();
       // Use structuredResponse.recipes if present, else fallback
       const recipesArr = data.structuredResponse?.recipes || data.recipes || [];
-      // Attach the ingredient id mapping to each recipe for later use
-      setRecipes(Array.isArray(recipesArr) ? recipesArr.map((r: Record<string, unknown>) => ({ ...r, ingredientIdMap: selectedIngredientObjects })) : []);
+      // Injecter les intolérances sélectionnées dans chaque recette générée
+      setRecipes(Array.isArray(recipesArr) ? recipesArr.map((r: Record<string, unknown>) => ({ ...r, ingredientIdMap: selectedIngredientObjects, intolerances })) : []);
       setProgress(100);
       setProgressMessage("Recettes générées avec succès !");
       toast.success("Recettes générées avec succès !");
@@ -266,13 +303,28 @@ export default function Home() {
                   <Label className="text-base font-semibold text-slate-900">
                     ⚠️ Intolérances alimentaires
                   </Label>
-                  <MultiSelect
-                    options={INTOLERANCES}
-                    value={intolerances}
-                    onValueChange={setIntolerances}
-                    placeholder="Sélectionnez vos intolérances (optionnel)"
-                    maxCount={10}
-                  />
+                  {intoleranceLoading ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-12 w-full rounded-lg" />
+                      <Skeleton className="h-12 w-3/4 rounded-lg" />
+                    </div>
+                  ) : (
+                    <MultiSelect
+                      options={intoleranceOptions}
+                      value={intolerances}
+                      onValueChange={setIntolerances}
+                      onAddAndSelectOption={handleAddAndSelectIntoleranceOption}
+                      placeholder="Sélectionnez ou ajoutez une intolérance (optionnel)"
+                      addOptionPlaceholder="Ajouter une intolérance..."
+                      addButtonLabel="Ajouter"
+                      searchPlaceholder="Rechercher..."
+                      noResultsLabel="Aucun résultat"
+                      selectAllLabel="(Tout sélectionner)"
+                      clearLabel="Effacer"
+                      closeLabel="Fermer"
+                      maxCount={10}
+                    />
+                  )}
                 </div>
 
                 <Separator />

@@ -441,6 +441,43 @@ export default function RecipeDetailPage() {
                 </CardContent>
               </Card>
 
+              {/* Intolerances */}
+              <Card className="modern-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="text-lg">⚠️</span>
+                    Intolérances
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {Array.isArray(recipe.intolerances) && recipe.intolerances.length > 0 ? (
+                      recipe.intolerances.map((intol: any, idx: number) => (
+                        <div
+                          key={intol.id || idx}
+                          className="flex items-center gap-3 p-3 bg-red-50 rounded-lg hover-lift"
+                        >
+                          <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                          <div className="flex-1">
+                            <div className="font-medium">{intol.name}</div>
+                            {intol.description && (
+                              <div className="text-xs text-muted-foreground">{intol.description}</div>
+                            )}
+                          </div>
+                          {intol.severity_level && (
+                            <Badge variant="destructive" className="text-xs capitalize">
+                              {intol.severity_level === 'mild' ? 'Légère' : intol.severity_level === 'moderate' ? 'Modérée' : intol.severity_level === 'severe' ? 'Sévère' : intol.severity_level}
+                            </Badge>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm text-muted-foreground">Aucune intolérance liée à cette recette.</div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Instructions */}
               <Card className="modern-card">
                 <CardHeader>

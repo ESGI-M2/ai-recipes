@@ -81,6 +81,7 @@ export function RecipeCard({ recipe, onDelete, showDeleteButton = false, showSav
             cuisine,
             prep_time_minutes: prepTime,
             cook_time_minutes: cookTime,
+            intolerances: recipe.intolerances || [], // Ajout des intolérances
           },
         }),
       });

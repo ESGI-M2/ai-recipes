@@ -64,10 +64,23 @@ export async function GET(req: Request) {
       };
     });
 
+    // Ajout : récupérer les intolérances liées à cette recette
+    const allIntolerances = await getRecords(AirtableTables.FOOD_INTOLERANCES);
+    const intolerancesForRecipe = (allIntolerances as any[]).filter((intol) => {
+      const related = intol.fields?.['Related Recipes'] || [];
+      return Array.isArray(related) && related.includes(id);
+    }).map((intol) => ({
+      id: intol.id,
+      name: intol.fields?.Name || '',
+      description: intol.fields?.description || '',
+      severity_level: intol.fields?.severity_level || '',
+    }));
+
     return NextResponse.json({
       ...recipe,
       recipe_ingredient_quantity_records: recipeIngredientJoinsWithNames,
       recipe_instruction_records: recipeInstructionJoins,
+      intolerances: intolerancesForRecipe,
     });
   } catch (error) {
     return NextResponse.json({ error: (error as Error)?.message || 'Unknown error' }, { status: 500 });
